@@ -126,11 +126,11 @@ try:
         max_sunrise, min_sunrise = -1, 999
         date_max_sunrise, date_min_sunrise = None, None
         
-        # Para extremos del mediodía (Ecuación del tiempo)
-        # Usamos el valor M matemático (UTC) para encontrar los extremos reales sin saltos de DST
+        # Extremos absolutos
         max_m_val, min_m_val = -1, 999
         d_max_noon, d_min_noon = None, None
-        # Puntos secundarios (relativos)
+        
+        # Puntos de inflexión / extremos relativos
         rel_max_val, rel_min_val = -1, 999
         d_rel_max_noon, d_rel_min_noon = None, None
 
@@ -146,13 +146,16 @@ try:
             if h_rise > max_sunrise: max_sunrise, date_max_sunrise = h_rise, d.date()
             if h_rise < min_sunrise: min_sunrise, date_min_sunrise = h_rise, d.date()
 
-            # Lógica para extremos del mediodía (Analema)
+            # Máximos y mínimos absolutos (Febrero y Noviembre)
             if M > max_m_val: max_m_val, d_max_noon = M, d.date()
             if M < min_m_val: min_m_val, d_min_noon = M, d.date()
-            # Inflexiones secundarias (Mayo y Julio aprox)
+            
+            # Puntos de inflexión (Extremos relativos en Mayo y Julio)
             mes = d.month
-            if mes in [5, 6] and M < rel_min_val: rel_min_val, d_rel_min_noon = M, d.date()
-            if mes in [7, 8] and M > rel_max_val: rel_max_val, d_rel_max_noon = M, d.date()
+            if mes in [5, 6] and M < rel_min_val: 
+                rel_min_val, d_rel_min_noon = M, d.date()
+            if mes in [7, 8] and M > rel_max_val: 
+                rel_max_val, d_rel_max_noon = M, d.date()
 
             for k, val in zip(claves, [t1, t2, t3, t4, t5, t6, bm, M]):
                 v[k].append(min(24.0, val) if k == 't6' else val)
@@ -211,8 +214,9 @@ try:
             add_vline(d_max_rise, "magenta", "dot"); add_vline(d_min_rise, "lightgreen", "dot")
             add_vline(d_max_set, "red", "dot"); add_vline(d_min_set, "blue", "dot")
             
-            # Extremos del Cénit (Amarillo)
-            for d_noon in [d_max_n, d_min_n, d_rel_max, d_rel_min]:
+            # Líneas Amarillas: Máximos, mínimos y puntos de inflexión del Cénit
+            puntos_cenit = [d_max_n, d_min_n, d_rel_max, d_rel_min]
+            for d_noon in puntos_cenit:
                 add_vline(d_noon, "yellow", "dot")
             
             for d_dst in dst_dates: add_vline(d_dst, "white", "solid")
@@ -224,7 +228,7 @@ try:
 
             st.markdown("---")
             st.markdown("**1. Solsticios:** Naranja (Verano), Cian (Invierno).")
-            st.markdown("**2. Cénit Solar:** Línea naranja continua. Marcadores amarillos en sus máximos y mínimos anuales.")
+            st.markdown("**2. Cénit Solar:** Línea naranja continua. Marcadores amarillos en sus máximos, mínimos y puntos de inflexión.")
             st.markdown("**3. Amanecer:** Magenta (tardío), Verde (temprano).")
             st.markdown("**4. Atardecer:** Rojo (tardío), Azul (temprano).")
             st.markdown("**5. Reloj:** Líneas blancas (cambio de hora social).")
