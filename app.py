@@ -126,13 +126,9 @@ try:
         max_sunrise, min_sunrise = -1, 999
         date_max_sunrise, date_min_sunrise = None, None
         
-        # Extremos absolutos
-        max_m_val, min_m_val = -1, 999
-        d_max_noon, d_min_noon = None, None
-        
-        # Puntos de inflexión / extremos relativos
-        rel_max_val, rel_min_val = -1, 999
-        d_rel_max_noon, d_rel_min_noon = None, None
+        # Lista para guardar los 8 puntos críticos (máximos, mínimos y sillas)
+        puntos_criticos_cenit = []
+        valores_m = [] # Necesitamos primero recolectar todos los valores
 
         for d in dates:
             (t1, t2, t3, t4, t5, t6, bm, M), offset, P_val = get_solar_events(d.date())
@@ -150,18 +146,21 @@ try:
             if M > max_m_val: max_m_val, d_max_noon = M, d.date()
             if M < min_m_val: min_m_val, d_min_noon = M, d.date()
             
-            # Puntos de inflexión (Extremos relativos en Mayo y Julio)
-            mes = d.month
-            if mes in [5, 6] and M < rel_min_val: 
-                rel_min_val, d_rel_min_noon = M, d.date()
-            if mes in [7, 8] and M > rel_max_val: 
-                rel_max_val, d_rel_max_noon = M, d.date()
-
-            for k, val in zip(claves, [t1, t2, t3, t4, t5, t6, bm, M]):
-                v[k].append(min(24.0, val) if k == 't6' else val)
-                s[k].append(formato_hhmm(val + offset))
+            # ... (dentro del bucle for d in dates, asegúrate de guardar M)
+            v['M'].append(M)
+            # ... (al salir del bucle, añade esta lógica de detección de 8 puntos)
             
-        return dates, v, s, dst_dates, date_max_sunset, date_min_sunset, date_max_sunrise, date_min_sunrise, d_max_noon, d_min_noon, d_rel_max_noon, d_rel_min_noon
+            for i in range(1, len(v['M']) - 1):
+                prev, curr, post = v['M'][i-1], v['M'][i], v['M'][i+1]
+                # Detecta máximos y mínimos (donde cambia la dirección)
+                if (curr > prev and curr > post) or (curr < prev and curr < post):
+                    puntos_criticos_cenit.append(dates[i].date())
+                # Detecta puntos de silla / inflexión (donde cambia la aceleración)
+                elif abs((post - curr) - (curr - prev)) < 0.0001: # Umbral de aplanamiento
+                    if len(puntos_criticos_cenit) < 8: # Evitar duplicados visuales
+                        puntos_criticos_cenit.append(dates[i].date())
+    
+            return dates, v, s, dst_dates, date_max_sunset, date_min_sunset, date_max_sunrise, date_min_sunrise, puntos_criticos_cenit
 
     with tab_grafo:
         with st.spinner('Procesando ciclo anual...'):
@@ -214,10 +213,9 @@ try:
             add_vline(d_max_rise, "magenta", "dot"); add_vline(d_min_rise, "lightgreen", "dot")
             add_vline(d_max_set, "red", "dot"); add_vline(d_min_set, "blue", "dot")
             
-            # Líneas Amarillas: Máximos, mínimos y puntos de inflexión del Cénit
-            puntos_cenit = [d_max_n, d_min_n, d_rel_max, d_rel_min]
-            for d_noon in puntos_cenit:
-                add_vline(d_noon, "yellow", "dot")
+            # Dibujar los 8 marcadores amarillos (Máximos, Mínimos y Puntos de Silla)
+            for fecha_critica in res[8]: # res[8] es la lista de puntos_criticos_cenit
+                add_vline(fecha_critica, "yellow", "dot")
             
             for d_dst in dst_dates: add_vline(d_dst, "white", "solid")
 
@@ -228,7 +226,7 @@ try:
 
             st.markdown("---")
             st.markdown("**1. Solsticios:** Naranja (Verano), Cian (Invierno).")
-            st.markdown("**2. Cénit Solar:** Línea naranja continua. Marcadores amarillos en sus máximos, mínimos y puntos de inflexión.")
+            st.markdown("**2. Cénit Solar:** Línea naranja continua. Marcadores amarillos en sus 8 puntos críticos (máximos, mínimos y puntos de silla anuales).")
             st.markdown("**3. Amanecer:** Magenta (tardío), Verde (temprano).")
             st.markdown("**4. Atardecer:** Rojo (tardío), Azul (temprano).")
             st.markdown("**5. Reloj:** Líneas blancas (cambio de hora social).")
