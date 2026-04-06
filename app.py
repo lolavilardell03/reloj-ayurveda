@@ -34,17 +34,12 @@ try:
 
     def get_solar_events(fecha_dia):
         s_today = sun(loc.observer, date=fecha_dia, tzinfo=pytz.UTC)
-        
         ayer = fecha_dia - datetime.timedelta(days=1)
         s_yesterday = sun(loc.observer, date=ayer, tzinfo=pytz.UTC)
-        
         manana = fecha_dia + datetime.timedelta(days=1)
         s_tomorrow = sun(loc.observer, date=manana, tzinfo=pytz.UTC)
         
-        midnight_utc = datetime.datetime.combine(
-            fecha_dia, 
-            datetime.time.min
-        ).replace(tzinfo=pytz.UTC)
+        midnight_utc = datetime.datetime.combine(fecha_dia, datetime.time.min).replace(tzinfo=pytz.UTC)
         
         def hours_from_mid(dt_utc):
             return (dt_utc - midnight_utc).total_seconds() / 3600.0 + 1.0 
@@ -53,7 +48,6 @@ try:
         P = hours_from_mid(s_today['sunset'])
         A_tom = hours_from_mid(s_tomorrow['sunrise'])
         P_yest = hours_from_mid(s_yesterday['sunset'])
-        
         M = hours_from_mid(s_today['noon'])
         
         L_day = P - A
@@ -85,7 +79,6 @@ try:
     with tab_circulo:
         hoy = datetime.datetime.now(tz).date()
         (t1, t2, t3, t4, t5, t6, bm, M), offset, _ = get_solar_events(hoy)
-        
         col_texto, col_circulo = st.columns([1, 2])
         
         with col_texto:
@@ -102,157 +95,84 @@ try:
 
         with col_circulo:
             t6_limitado = min(24.0, t6)
-            
-            duraciones = [
-                max(0.001, t1), 
-                max(0.001, t2 - t1), 
-                max(0.001, t3 - t2), 
-                max(0.001, t4 - t3), 
-                max(0.001, t5 - t4), 
-                max(0.001, t6_limitado - t5)
-            ]
-            
-            nombres = [
-                'Pitta Noche', 
-                'Vata Noche', 
-                'Kapha Mañana', 
-                'Pitta Día', 
-                'Vata Tarde', 
-                'Kapha Noche'
-            ]
-            
-            colores = [
-                c_pitta_n, 
-                c_vatta_n, 
-                c_kapha_d, 
-                c_pitta_d, 
-                c_vatta_d, 
-                c_kapha_n
-            ]
-            
+            duraciones = [max(0.001, t1), max(0.001, t2-t1), max(0.001, t3-t2), max(0.001, t4-t3), max(0.001, t5-t4), max(0.001, t6_limitado-t5)]
+            nombres = ['Pitta Noche', 'Vata Noche', 'Kapha Mañana', 'Pitta Día', 'Vata Tarde', 'Kapha Noche']
+            colores = [c_pitta_n, c_vatta_n, c_kapha_d, c_pitta_d, c_vatta_d, c_kapha_n]
             if t6 < 24.0:
                 duraciones.append(max(0.001, 24.0 - t6))
                 nombres.append('Pitta Noche')
                 colores.append(c_pitta_n)
 
             fig_circulo = go.Figure(go.Pie(
-                values=duraciones, 
-                labels=nombres,
+                values=duraciones, labels=nombres,
                 marker=dict(colors=colores, line=dict(width=0)), 
-                hole=0.4, 
-                sort=False, 
-                direction='clockwise', 
-                rotation=270,
-                textinfo='label', 
-                hovertemplate="<b>%{label}</b><br>Duración: %{value:.1f}h<extra></extra>"
+                hole=0.4, sort=False, direction='clockwise', rotation=270,
+                textinfo='label', hovertemplate="<b>%{label}</b><br>Duración: %{value:.1f}h<extra></extra>"
             ))
-
-            fig_circulo.update_layout(
-                template="plotly_dark", 
-                height=500, 
-                showlegend=False, 
-                margin=dict(t=0, b=0, l=0, r=0),
-                annotations=[
-                    dict(text='24 H', x=0.5, y=0.5, font=dict(size=30), showarrow=False)
-                ]
-            )
+            fig_circulo.update_layout(template="plotly_dark", height=500, showlegend=False, margin=dict(t=0, b=0, l=0, r=0),
+                annotations=[dict(text='24 H', x=0.5, y=0.5, font=dict(size=30), showarrow=False)])
             st.plotly_chart(fig_circulo, use_container_width=True)
 
     def obtener_datos_anuales(ubicacion_nombre, año):
         dates = pd.date_range(start=f'{año}-03-20', end=f'{año+1}-03-19', freq='D')
-        
         claves = ['t1', 't2', 't3', 't4', 't5', 't6', 'bm', 'M']
         v = {k: [] for k in claves}
         s = {k: [] for k in claves}
-        
         dst_dates = []
         prev_offset = None
 
         max_sunset, min_sunset = -1, 999
         date_max_sunset, date_min_sunset = None, None
-        
         max_sunrise, min_sunrise = -1, 999
         date_max_sunrise, date_min_sunrise = None, None
         
-        max_noon, min_noon = -1, 999
-        date_max_noon, date_min_noon = None, None
+        # Para extremos del mediodía (Ecuación del tiempo)
+        # Usamos el valor M matemático (UTC) para encontrar los extremos reales sin saltos de DST
+        max_m_val, min_m_val = -1, 999
+        d_max_noon, d_min_noon = None, None
+        # Puntos secundarios (relativos)
+        rel_max_val, rel_min_val = -1, 999
+        d_rel_max_noon, d_rel_min_noon = None, None
 
         for d in dates:
             (t1, t2, t3, t4, t5, t6, bm, M), offset, P_val = get_solar_events(d.date())
-            
             if prev_offset is not None and offset != prev_offset:
                 dst_dates.append(d.date())
             prev_offset = offset
             
-            hora_amanecer = t2 + offset
-            hora_atardecer = t5 + offset
+            h_rise, h_set = t2 + offset, t5 + offset
+            if h_set > max_sunset: max_sunset, date_max_sunset = h_set, d.date()
+            if h_set < min_sunset: min_sunset, date_min_sunset = h_set, d.date()
+            if h_rise > max_sunrise: max_sunrise, date_max_sunrise = h_rise, d.date()
+            if h_rise < min_sunrise: min_sunrise, date_min_sunrise = h_rise, d.date()
+
+            # Lógica para extremos del mediodía (Analema)
+            if M > max_m_val: max_m_val, d_max_noon = M, d.date()
+            if M < min_m_val: min_m_val, d_min_noon = M, d.date()
+            # Inflexiones secundarias (Mayo y Julio aprox)
+            mes = d.month
+            if mes in [5, 6] and M < rel_min_val: rel_min_val, d_rel_min_noon = M, d.date()
+            if mes in [7, 8] and M > rel_max_val: rel_max_val, d_rel_max_noon = M, d.date()
+
+            for k, val in zip(claves, [t1, t2, t3, t4, t5, t6, bm, M]):
+                v[k].append(min(24.0, val) if k == 't6' else val)
+                s[k].append(formato_hhmm(val + offset))
             
-            if hora_atardecer > max_sunset:
-                max_sunset, date_max_sunset = hora_atardecer, d.date()
-            if hora_atardecer < min_sunset:
-                min_sunset, date_min_sunset = hora_atardecer, d.date()
-                
-            if hora_amanecer > max_sunrise:
-                max_sunrise, date_max_sunrise = hora_amanecer, d.date()
-            if hora_amanecer < min_sunrise:
-                min_sunrise, date_min_sunrise = hora_amanecer, d.date()
-                
-            if M > max_noon:
-                max_noon, date_max_noon = M, d.date()
-            if M < min_noon:
-                min_noon, date_min_noon = M, d.date()
-            
-            v['t1'].append(t1)
-            v['t2'].append(t2)
-            v['t3'].append(t3)
-            v['t4'].append(t4)
-            v['t5'].append(t5)
-            v['t6'].append(min(24.0, t6))
-            v['bm'].append(bm)
-            v['M'].append(M)
-            
-            s['t1'].append(formato_hhmm(t1+offset))
-            s['t2'].append(formato_hhmm(t2+offset))
-            s['t3'].append(formato_hhmm(t3+offset))
-            s['t4'].append(formato_hhmm(t4+offset))
-            s['t5'].append(formato_hhmm(t5+offset))
-            s['t6'].append(formato_hhmm(t6+offset))
-            s['bm'].append(formato_hhmm(bm+offset))
-            s['M'].append(formato_hhmm(M+offset))
-            
-        return dates, v, s, dst_dates, date_max_sunset, date_min_sunset, date_max_sunrise, date_min_sunrise, date_max_noon, date_min_noon
+        return dates, v, s, dst_dates, date_max_sunset, date_min_sunset, date_max_sunrise, date_min_sunrise, d_max_noon, d_min_noon, d_rel_max_noon, d_rel_min_noon
 
     with tab_grafo:
         with st.spinner('Procesando ciclo anual...'):
             año_act = datetime.datetime.now().year
-            datos = obtener_datos_anuales(ubicacion, año_act)
-            dates, v, s, dst_dates, d_max_set, d_min_set, d_max_rise, d_min_rise, d_max_noon, d_min_noon = datos
+            res = obtener_datos_anuales(ubicacion, año_act)
+            dates, v, s, dst_dates, d_max_set, d_min_set, d_max_rise, d_min_rise, d_max_n, d_min_n, d_rel_max, d_rel_min = res
             
             x = [d.date() for d in dates]
             fig_grafo = go.Figure()
 
             def add_area(y_data, color, name):
-                fig_grafo.add_trace(go.Scatter(
-                    x=x, 
-                    y=y_data, 
-                    fill='tonexty', 
-                    mode='lines', 
-                    line=dict(width=0),
-                    fillcolor=color, 
-                    hoverinfo='skip', 
-                    showlegend=False, 
-                    name=name
-                ))
+                fig_grafo.add_trace(go.Scatter(x=x, y=y_data, fill='tonexty', mode='lines', line=dict(width=0), fillcolor=color, hoverinfo='skip', showlegend=False, name=name))
                 
-            fig_grafo.add_trace(go.Scatter(
-                x=x, 
-                y=[0]*len(x), 
-                mode='lines', 
-                line=dict(width=0), 
-                hoverinfo='skip', 
-                showlegend=False
-            ))
-            
+            fig_grafo.add_trace(go.Scatter(x=x, y=[0]*len(x), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False))
             add_area(v['t1'], c_pitta_n, "Pitta Noche")
             add_area(v['t2'], c_vatta_n, "Vata Noche")
             add_area(v['t3'], c_kapha_d, "Kapha Mañana")
@@ -261,110 +181,51 @@ try:
             add_area(v['t6'], c_kapha_n, "Kapha Noche")
             add_area([24]*len(x), c_pitta_n, "Pitta Noche")
             
-            fig_grafo.add_trace(go.Scatter(
-                x=x, 
-                y=v['bm'], 
-                mode='lines', 
-                line=dict(color='gold', width=2, dash='dash'), 
-                hoverinfo='skip', 
-                showlegend=False
-            ))
-            
-            # Curva de Cénit Solar modificada a naranja brillante (#FF8C00)
-            fig_grafo.add_trace(go.Scatter(
-                x=x, 
-                y=v['M'], 
-                mode='lines', 
-                line=dict(color='#FF8C00', width=2), 
-                hoverinfo='skip', 
-                showlegend=False
-            ))
+            # Curvas dinámicas
+            fig_grafo.add_trace(go.Scatter(x=x, y=v['bm'], mode='lines', line=dict(color='gold', width=2, dash='dash'), hoverinfo='skip', showlegend=False))
+            fig_grafo.add_trace(go.Scatter(x=x, y=v['M'], mode='lines', line=dict(color='#FF8C00', width=2), hoverinfo='skip', showlegend=False))
 
             def add_hover(y_data, text_data, name):
-                fig_grafo.add_trace(go.Scatter(
-                    x=x, 
-                    y=y_data, 
-                    customdata=text_data, 
-                    mode='lines', 
-                    line=dict(width=0),
-                    hovertemplate=f"<b>{name}</b>: %{{customdata}}<extra></extra>"
-                ))
+                fig_grafo.add_trace(go.Scatter(x=x, y=y_data, customdata=text_data, mode='lines', line=dict(width=0), hovertemplate=f"<b>{name}</b>: %{{customdata}}<extra></extra>"))
                 
             add_hover(v['bm'], s['bm'], "Brahma Muhurta")
             add_hover(v['t2'], s['t2'], "Amanecer (Kapha)")
             add_hover(v['t3'], s['t3'], "Inicio Pitta")
-            add_hover(v['M'], s['M'], "Cénit Solar")  # Texto acortado
+            add_hover(v['M'], s['M'], "Cénit Solar")
             add_hover(v['t4'], s['t4'], "Inicio Vata")
             add_hover(v['t5'], s['t5'], "Atardecer (Kapha)")
             add_hover(v['t6'], s['t6'], "Pitta Noche")
             add_hover(v['t1'], s['t1'], "Vata Noche")
 
             def add_vline(d_val, color, dash='dot'):
-                if d_val is not None:
-                    fig_grafo.add_vline(
-                        x=str(d_val), 
-                        line_dash=dash, 
-                        line_color=color, 
-                        opacity=0.7
-                    )
-                
-            s_ver = datetime.date(año_act, 6, 21)
-            s_inv = datetime.date(año_act, 12, 21)
+                if d_val: fig_grafo.add_vline(x=str(d_val), line_dash=dash, line_color=color, opacity=0.7)
             
-            if s_ver < dates[0].date(): 
-                s_ver = datetime.date(año_act+1, 6, 21)
-            if s_inv < dates[0].date(): 
-                s_inv = datetime.date(año_act+1, 12, 21)
-
+            # Solsticios
+            s_ver, s_inv = datetime.date(año_act, 6, 21), datetime.date(año_act, 12, 21)
+            if s_ver < dates[0].date(): s_ver = datetime.date(año_act+1, 6, 21)
+            if s_inv < dates[0].date(): s_inv = datetime.date(año_act+1, 12, 21)
             add_vline(s_ver, "orange", "dash")
             add_vline(s_inv, "cyan", "dash")
             
-            add_vline(d_max_rise, "magenta", "dot")
-            add_vline(d_min_rise, "lightgreen", "dot")
+            # Extremos de Amanecer / Atardecer
+            add_vline(d_max_rise, "magenta", "dot"); add_vline(d_min_rise, "lightgreen", "dot")
+            add_vline(d_max_set, "red", "dot"); add_vline(d_min_set, "blue", "dot")
             
-            add_vline(d_max_set, "red", "dot")
-            add_vline(d_min_set, "blue", "dot")
+            # Extremos del Cénit (Amarillo)
+            for d_noon in [d_max_n, d_min_n, d_rel_max, d_rel_min]:
+                add_vline(d_noon, "yellow", "dot")
             
-            add_vline(d_max_noon, "yellow", "dot")
-            add_vline(d_min_noon, "yellow", "dot")
-            
-            for d_dst in dst_dates:
-                add_vline(d_dst, "white", "solid")
+            for d_dst in dst_dates: add_vline(d_dst, "white", "solid")
 
-            fig_grafo.update_layout(
-                xaxis=dict(tickformat="%d %b", title='Ciclo Perpetuo'),
-                yaxis_title='Hora Local',
-                yaxis=dict(
-                    range=[0, 24], 
-                    tickvals=list(range(0, 25)), 
-                    gridcolor='rgba(128, 128, 128, 0.2)'
-                ),
-                hovermode="x unified", 
-                template="plotly_dark", 
-                height=650, 
-                margin=dict(l=0, r=0, t=30, b=0)
-            )
-
+            fig_grafo.update_layout(xaxis=dict(tickformat="%d %b", title='Ciclo Perpetuo'), yaxis_title='Hora Local',
+                yaxis=dict(range=[0, 24], tickvals=list(range(0, 25)), gridcolor='rgba(128, 128, 128, 0.2)'),
+                hovermode="x unified", template="plotly_dark", height=650, margin=dict(l=0, r=0, t=30, b=0))
             st.plotly_chart(fig_grafo, use_container_width=True)
 
             st.markdown("---")
             st.markdown("### Leyenda de Eventos Astronómicos")
-            st.markdown(
-                "**1. Solsticios (Posición del Sol)**\n"
-                "* **Línea Naranja (Guiones):** Solsticio de Verano (Día más largo).\n"
-                "* **Línea Cian (Guiones):** Solsticio de Invierno (Noche más larga).\n\n"
-                "**2. Cénit Solar**\n"
-                "* **Línea Naranja Fuerte (Continua):** Curva que traza la fluctuación del mediodía solar.\n"
-                "* **Líneas Amarillas (Punteadas):** Indican el Mediodía Solar más temprano (otoño) y el más tardío (invierno/primavera) del año.\n\n"
-                "**3. Extremos del Amanecer**\n"
-                "* **Línea Magenta (Punteada):** Amanecer más tardío.\n"
-                "* **Línea Verde Claro (Punteada):** Amanecer más temprano.\n\n"
-                "**4. Extremos del Atardecer**\n"
-                "* **Línea Roja (Punteada):** Atardecer más tardío.\n"
-                "* **Línea Azul (Punteada):** Atardecer más temprano.\n\n"
-                "**5. Ajustes de Reloj Social**\n"
-                "* **Línea Blanca (Sólida):** Días de cambio de hora local."
-            )
+            st.markdown("**1. Solsticios:** Naranja (Verano), Cian (Invierno). | **2. Cénit Solar:** Línea continua naranja. Marcadores amarillos en sus máximos y mínimos anuales.")
+            st.markdown("**3. Amanecer:** Magenta (tardío), Verde (temprano). | **4. Atardecer:** Rojo (tardío), Azul (temprano). | **5. Reloj:** Líneas blancas (cambio de hora).")
 
 except Exception as e:
     st.error("¡Oops! Ha ocurrido un error técnico interno:")
