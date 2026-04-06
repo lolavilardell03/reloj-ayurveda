@@ -8,7 +8,7 @@ from astral.sun import sun
 import traceback
 
 try:
-    st.set_page_config(page_title="Reloj Ayurvédico", page_icon="🧘‍♂️", layout="wide")
+    st.set_page_config(page_title="Reloj Ayurvédico", page_icon="🌺", layout="wide")
     st.title("Tu Reloj Ayurvédico Personal")
 
     ubicacion = st.selectbox(
