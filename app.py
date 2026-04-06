@@ -126,6 +126,12 @@ try:
         max_sunrise, min_sunrise = -1, 999
         date_max_sunrise, date_min_sunrise = None, None
         
+        # Inicializamos variables para evitar el error 'UnboundLocalError'
+        max_m_val, min_m_val = -1, 999
+        d_max_noon, d_min_noon = None, None
+        
+        # Lista para capturar los 8 puntos del analema (4 picos + 4 cruces)
+        puntos_8_analema = []
         # Lista para guardar los 8 puntos críticos (máximos, mínimos y sillas)
         puntos_criticos_cenit = []
         valores_m = [] # Necesitamos primero recolectar todos los valores
@@ -146,22 +152,27 @@ try:
             if M > max_m_val: max_m_val, d_max_noon = M, d.date()
             if M < min_m_val: min_m_val, d_min_noon = M, d.date()
             
-            # ... (dentro del bucle for d in dates, asegúrate de guardar M)
+            # Guardamos el valor matemático del cénit
             v['M'].append(M)
-            # ... (al salir del bucle, añade esta lógica de detección de 8 puntos)
+            s['M'].append(formato_hhmm(M + offset))
             
+            # Al salir del bucle, detectamos los 8 puntos (4 extremos y 4 cruces de cero)
+            # Nota: El cénit solar cruza su media aprox. 4 veces al año
+            promedio_m = sum(v['M']) / len(v['M'])
             for i in range(1, len(v['M']) - 1):
                 prev, curr, post = v['M'][i-1], v['M'][i], v['M'][i+1]
-                # Detecta máximos y mínimos (donde cambia la dirección)
+                
+                # Detectar los 4 Extremos (Máximos y Mínimos)
                 if (curr > prev and curr > post) or (curr < prev and curr < post):
-                    puntos_criticos_cenit.append(dates[i].date())
-                # Detecta puntos de silla / inflexión (donde cambia la aceleración)
-                elif abs((post - curr) - (curr - prev)) < 0.0001: # Umbral de aplanamiento
-                    if len(puntos_criticos_cenit) < 8: # Evitar duplicados visuales
-                        puntos_criticos_cenit.append(dates[i].date())
+                    puntos_8_analema.append(dates[i].date())
+                    
+                # Detectar los 4 Puntos de cruce / Silla (donde cruza el promedio)
+                elif (prev < promedio_m < curr) or (prev > promedio_m > curr):
+                    if len(puntos_8_analema) < 8:
+                        puntos_8_analema.append(dates[i].date())
     
-            return dates, v, s, dst_dates, date_max_sunset, date_min_sunset, date_max_sunrise, date_min_sunrise, puntos_criticos_cenit
-
+            return dates, v, s, dst_dates, date_max_sunset, date_min_sunset, date_max_sunrise, date_min_sunrise, puntos_8_analema
+        
     with tab_grafo:
         with st.spinner('Procesando ciclo anual...'):
             año_act = datetime.datetime.now().year
@@ -213,9 +224,10 @@ try:
             add_vline(d_max_rise, "magenta", "dot"); add_vline(d_min_rise, "lightgreen", "dot")
             add_vline(d_max_set, "red", "dot"); add_vline(d_min_set, "blue", "dot")
             
-            # Dibujar los 8 marcadores amarillos (Máximos, Mínimos y Puntos de Silla)
-            for fecha_critica in res[8]: # res[8] es la lista de puntos_criticos_cenit
-                add_vline(fecha_critica, "yellow", "dot")
+            # Dibujamos los 8 marcadores amarillos detectados
+            # res[8] es la lista 'puntos_8_analema' que devolvimos antes
+            for fecha_punto in res[8]:
+                add_vline(fecha_punto, "yellow", "dot")
             
             for d_dst in dst_dates: add_vline(d_dst, "white", "solid")
 
