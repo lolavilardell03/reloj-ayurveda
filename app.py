@@ -54,7 +54,6 @@ try:
         A_tom = hours_from_mid(s_tomorrow['sunrise'])
         P_yest = hours_from_mid(s_yesterday['sunset'])
         
-        # Nueva variable M: Mediodía Solar (Cénit)
         M = hours_from_mid(s_today['noon'])
         
         L_day = P - A
@@ -175,7 +174,6 @@ try:
         max_sunrise, min_sunrise = -1, 999
         date_max_sunrise, date_min_sunrise = None, None
         
-        # Variables para los extremos del Mediodía Solar (Curva de la Ecuación del Tiempo)
         max_noon, min_noon = -1, 999
         date_max_noon, date_min_noon = None, None
 
@@ -199,7 +197,6 @@ try:
             if hora_amanecer < min_sunrise:
                 min_sunrise, date_min_sunrise = hora_amanecer, d.date()
                 
-            # Evaluamos el cénit usando su valor matemático (M) para no falsear los extremos con el cambio de hora DST
             if M > max_noon:
                 max_noon, date_max_noon = M, d.date()
             if M < min_noon:
@@ -264,7 +261,6 @@ try:
             add_area(v['t6'], c_kapha_n, "Kapha Noche")
             add_area([24]*len(x), c_pitta_n, "Pitta Noche")
             
-            # Línea de Brahma Muhurta
             fig_grafo.add_trace(go.Scatter(
                 x=x, 
                 y=v['bm'], 
@@ -274,12 +270,12 @@ try:
                 showlegend=False
             ))
             
-            # Nueva línea: Curva del Mediodía Solar (Cénit)
+            # Curva de Cénit / Ecuación del Tiempo modificada a línea continua y terracota
             fig_grafo.add_trace(go.Scatter(
                 x=x, 
                 y=v['M'], 
                 mode='lines', 
-                line=dict(color='white', width=1, dash='dot'), 
+                line=dict(color='#A04000', width=2), # #A04000 es un naranja muy oscuro (Sienna/Terracota)
                 hoverinfo='skip', 
                 showlegend=False
             ))
@@ -329,7 +325,6 @@ try:
             add_vline(d_max_set, "red", "dot")
             add_vline(d_min_set, "blue", "dot")
             
-            # Verticales de la curva Analema / Mediodía
             add_vline(d_max_noon, "yellow", "dot")
             add_vline(d_min_noon, "yellow", "dot")
             
@@ -359,6 +354,7 @@ try:
                 "* **Línea Naranja (Guiones):** Solsticio de Verano (Día más largo).\n"
                 "* **Línea Cian (Guiones):** Solsticio de Invierno (Noche más larga).\n\n"
                 "**2. Cénit Solar (Ecuación del Tiempo / Analema)**\n"
+                "* **Línea Terracota (Continua):** Curva que traza la fluctuación del mediodía solar.\n"
                 "* **Líneas Amarillas (Punteadas):** Indican el Mediodía Solar más temprano (otoño) y el más tardío (invierno/primavera) del año.\n\n"
                 "**3. Extremos del Amanecer**\n"
                 "* **Línea Magenta (Punteada):** Amanecer más tardío.\n"
