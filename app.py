@@ -54,6 +54,9 @@ try:
         A_tom = hours_from_mid(s_tomorrow['sunrise'])
         P_yest = hours_from_mid(s_yesterday['sunset'])
         
+        # Nueva variable M: Mediodía Solar (Cénit)
+        M = hours_from_mid(s_today['noon'])
+        
         L_day = P - A
         L_night = A_tom - P
         L_night_yest = A - P_yest
@@ -69,7 +72,7 @@ try:
         dt_local = tz.localize(datetime.datetime.combine(fecha_dia, datetime.time(12,0)))
         offset_verano = 1.0 if dt_local.dst().total_seconds() > 0 else 0.0
         
-        return (t1, t2, t3, t4, t5, t6, bm), offset_verano, P
+        return (t1, t2, t3, t4, t5, t6, bm, M), offset_verano, P
 
     c_pitta_n = 'rgba(210, 130, 210, 0.5)'  
     c_vatta_n = 'rgba(150, 150, 255, 0.5)'  
@@ -82,7 +85,7 @@ try:
 
     with tab_circulo:
         hoy = datetime.datetime.now(tz).date()
-        (t1, t2, t3, t4, t5, t6, bm), offset, _ = get_solar_events(hoy)
+        (t1, t2, t3, t4, t5, t6, bm, M), offset, _ = get_solar_events(hoy)
         
         col_texto, col_circulo = st.columns([1, 2])
         
@@ -92,6 +95,7 @@ try:
             st.markdown(f"**Brahma Muhurta:** `{formato_hhmm(bm + offset)}`")
             st.markdown(f"**Amanecer (Kapha):** `{formato_hhmm(t2 + offset)}`")
             st.markdown(f"**Inicio Pitta:** `{formato_hhmm(t3 + offset)}`")
+            st.markdown(f"**Mediodía Solar:** `{formato_hhmm(M + offset)}`")
             st.markdown(f"**Inicio Vata:** `{formato_hhmm(t4 + offset)}`")
             st.markdown(f"**Atardecer (Kapha):** `{formato_hhmm(t5 + offset)}`")
             st.markdown(f"**Pitta Noche:** `{formato_hhmm(t6 + offset)}`")
@@ -158,7 +162,7 @@ try:
     def obtener_datos_anuales(ubicacion_nombre, año):
         dates = pd.date_range(start=f'{año}-03-20', end=f'{año+1}-03-19', freq='D')
         
-        claves = ['t1', 't2', 't3', 't4', 't5', 't6', 'bm']
+        claves = ['t1', 't2', 't3', 't4', 't5', 't6', 'bm', 'M']
         v = {k: [] for k in claves}
         s = {k: [] for k in claves}
         
@@ -170,9 +174,13 @@ try:
         
         max_sunrise, min_sunrise = -1, 999
         date_max_sunrise, date_min_sunrise = None, None
+        
+        # Variables para los extremos del Mediodía Solar (Curva de la Ecuación del Tiempo)
+        max_noon, min_noon = -1, 999
+        date_max_noon, date_min_noon = None, None
 
         for d in dates:
-            (t1, t2, t3, t4, t5, t6, bm), offset, _ = get_solar_events(d.date())
+            (t1, t2, t3, t4, t5, t6, bm, M), offset, P_val = get_solar_events(d.date())
             
             if prev_offset is not None and offset != prev_offset:
                 dst_dates.append(d.date())
@@ -190,6 +198,12 @@ try:
                 max_sunrise, date_max_sunrise = hora_amanecer, d.date()
             if hora_amanecer < min_sunrise:
                 min_sunrise, date_min_sunrise = hora_amanecer, d.date()
+                
+            # Evaluamos el cénit usando su valor matemático (M) para no falsear los extremos con el cambio de hora DST
+            if M > max_noon:
+                max_noon, date_max_noon = M, d.date()
+            if M < min_noon:
+                min_noon, date_min_noon = M, d.date()
             
             v['t1'].append(t1)
             v['t2'].append(t2)
@@ -198,6 +212,7 @@ try:
             v['t5'].append(t5)
             v['t6'].append(min(24.0, t6))
             v['bm'].append(bm)
+            v['M'].append(M)
             
             s['t1'].append(formato_hhmm(t1+offset))
             s['t2'].append(formato_hhmm(t2+offset))
@@ -206,14 +221,15 @@ try:
             s['t5'].append(formato_hhmm(t5+offset))
             s['t6'].append(formato_hhmm(t6+offset))
             s['bm'].append(formato_hhmm(bm+offset))
+            s['M'].append(formato_hhmm(M+offset))
             
-        return dates, v, s, dst_dates, date_max_sunset, date_min_sunset, date_max_sunrise, date_min_sunrise
+        return dates, v, s, dst_dates, date_max_sunset, date_min_sunset, date_max_sunrise, date_min_sunrise, date_max_noon, date_min_noon
 
     with tab_grafo:
         with st.spinner('Procesando ciclo anual...'):
             año_act = datetime.datetime.now().year
             datos = obtener_datos_anuales(ubicacion, año_act)
-            dates, v, s, dst_dates, d_max_set, d_min_set, d_max_rise, d_min_rise = datos
+            dates, v, s, dst_dates, d_max_set, d_min_set, d_max_rise, d_min_rise, d_max_noon, d_min_noon = datos
             
             x = [d.date() for d in dates]
             fig_grafo = go.Figure()
@@ -248,11 +264,22 @@ try:
             add_area(v['t6'], c_kapha_n, "Kapha Noche")
             add_area([24]*len(x), c_pitta_n, "Pitta Noche")
             
+            # Línea de Brahma Muhurta
             fig_grafo.add_trace(go.Scatter(
                 x=x, 
                 y=v['bm'], 
                 mode='lines', 
                 line=dict(color='gold', width=2, dash='dash'), 
+                hoverinfo='skip', 
+                showlegend=False
+            ))
+            
+            # Nueva línea: Curva del Mediodía Solar (Cénit)
+            fig_grafo.add_trace(go.Scatter(
+                x=x, 
+                y=v['M'], 
+                mode='lines', 
+                line=dict(color='white', width=1, dash='dot'), 
                 hoverinfo='skip', 
                 showlegend=False
             ))
@@ -270,6 +297,7 @@ try:
             add_hover(v['bm'], s['bm'], "Brahma Muhurta")
             add_hover(v['t2'], s['t2'], "Amanecer (Kapha)")
             add_hover(v['t3'], s['t3'], "Inicio Pitta")
+            add_hover(v['M'], s['M'], "Cénit Solar (Ecuación del Tiempo)")
             add_hover(v['t4'], s['t4'], "Inicio Vata")
             add_hover(v['t5'], s['t5'], "Atardecer (Kapha)")
             add_hover(v['t6'], s['t6'], "Pitta Noche")
@@ -301,6 +329,10 @@ try:
             add_vline(d_max_set, "red", "dot")
             add_vline(d_min_set, "blue", "dot")
             
+            # Verticales de la curva Analema / Mediodía
+            add_vline(d_max_noon, "yellow", "dot")
+            add_vline(d_min_noon, "yellow", "dot")
+            
             for d_dst in dst_dates:
                 add_vline(d_dst, "white", "solid")
 
@@ -324,15 +356,17 @@ try:
             st.markdown("### Leyenda de Eventos Astronómicos")
             st.markdown(
                 "**1. Solsticios (Posición del Sol)**\n"
-                "* **Línea Naranja (Guiones):** Solsticio de Verano (Punto más alto del sol).\n"
-                "* **Línea Cian (Guiones):** Solsticio de Invierno (Punto más bajo del sol).\n\n"
-                "**2. Extremos del Amanecer**\n"
+                "* **Línea Naranja (Guiones):** Solsticio de Verano (Día más largo).\n"
+                "* **Línea Cian (Guiones):** Solsticio de Invierno (Noche más larga).\n\n"
+                "**2. Cénit Solar (Ecuación del Tiempo / Analema)**\n"
+                "* **Líneas Amarillas (Punteadas):** Indican el Mediodía Solar más temprano (otoño) y el más tardío (invierno/primavera) del año.\n\n"
+                "**3. Extremos del Amanecer**\n"
                 "* **Línea Magenta (Punteada):** Amanecer más tardío.\n"
                 "* **Línea Verde Claro (Punteada):** Amanecer más temprano.\n\n"
-                "**3. Extremos del Atardecer**\n"
+                "**4. Extremos del Atardecer**\n"
                 "* **Línea Roja (Punteada):** Atardecer más tardío.\n"
                 "* **Línea Azul (Punteada):** Atardecer más temprano.\n\n"
-                "**4. Ajustes de Reloj Social**\n"
+                "**5. Ajustes de Reloj Social**\n"
                 "* **Línea Blanca (Sólida):** Días de cambio de hora local."
             )
 
