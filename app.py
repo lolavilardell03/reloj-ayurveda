@@ -71,7 +71,6 @@ try:
         
         return (t1, t2, t3, t4, t5, t6, bm), offset_verano, P
 
-    # COLORES EXACTOS DE GEOGEBRA
     c_pitta_n = 'rgba(210, 130, 210, 0.5)'  
     c_vatta_n = 'rgba(150, 150, 255, 0.5)'  
     c_kapha_d = 'rgba(220, 255, 170, 0.5)'  
@@ -164,21 +163,33 @@ try:
         s = {k: [] for k in claves}
         
         dst_dates = []
-        max_sunset, min_sunset = -1, 999
-        date_max_sunset, date_min_sunset = None, None
         prev_offset = None
 
+        max_sunset, min_sunset = -1, 999
+        date_max_sunset, date_min_sunset = None, None
+        
+        max_sunrise, min_sunrise = -1, 999
+        date_max_sunrise, date_min_sunrise = None, None
+
         for d in dates:
-            (t1, t2, t3, t4, t5, t6, bm), offset, P_val = get_solar_events(d.date())
+            (t1, t2, t3, t4, t5, t6, bm), offset, _ = get_solar_events(d.date())
             
             if prev_offset is not None and offset != prev_offset:
                 dst_dates.append(d.date())
             prev_offset = offset
             
-            if P_val > max_sunset:
-                max_sunset, date_max_sunset = P_val, d.date()
-            if P_val < min_sunset:
-                min_sunset, date_min_sunset = P_val, d.date()
+            hora_amanecer = t2 + offset
+            hora_atardecer = t5 + offset
+            
+            if hora_atardecer > max_sunset:
+                max_sunset, date_max_sunset = hora_atardecer, d.date()
+            if hora_atardecer < min_sunset:
+                min_sunset, date_min_sunset = hora_atardecer, d.date()
+                
+            if hora_amanecer > max_sunrise:
+                max_sunrise, date_max_sunrise = hora_amanecer, d.date()
+            if hora_amanecer < min_sunrise:
+                min_sunrise, date_min_sunrise = hora_amanecer, d.date()
             
             v['t1'].append(t1)
             v['t2'].append(t2)
@@ -196,13 +207,13 @@ try:
             s['t6'].append(formato_hhmm(t6+offset))
             s['bm'].append(formato_hhmm(bm+offset))
             
-        return dates, v, s, dst_dates, date_max_sunset, date_min_sunset
+        return dates, v, s, dst_dates, date_max_sunset, date_min_sunset, date_max_sunrise, date_min_sunrise
 
     with tab_grafo:
         with st.spinner('Procesando ciclo anual...'):
             año_act = datetime.datetime.now().year
             datos = obtener_datos_anuales(ubicacion, año_act)
-            dates, v, s, dst_dates, d_max, d_min = datos
+            dates, v, s, dst_dates, d_max_set, d_min_set, d_max_rise, d_min_rise = datos
             
             x = [d.date() for d in dates]
             fig_grafo = go.Figure()
@@ -281,10 +292,14 @@ try:
             if s_inv < dates[0].date(): 
                 s_inv = datetime.date(año_act+1, 12, 21)
 
-            add_vline(d_max, "red")
-            add_vline(d_min, "blue")
             add_vline(s_ver, "orange", "dash")
             add_vline(s_inv, "cyan", "dash")
+            
+            add_vline(d_max_rise, "magenta", "dot")
+            add_vline(d_min_rise, "lightgreen", "dot")
+            
+            add_vline(d_max_set, "red", "dot")
+            add_vline(d_min_set, "blue", "dot")
             
             for d_dst in dst_dates:
                 add_vline(d_dst, "white", "solid")
@@ -306,13 +321,19 @@ try:
             st.plotly_chart(fig_grafo, use_container_width=True)
 
             st.markdown("---")
-            st.markdown("### Referencias del Gráfico")
+            st.markdown("### Leyenda de Eventos Astronómicos")
             st.markdown(
-                "* **Línea Naranja (Guiones):** Solsticio de Verano.\n"
-                "* **Línea Cian (Guiones):** Solsticio de Invierno.\n"
+                "**1. Solsticios (Posición del Sol)**\n"
+                "* **Línea Naranja (Guiones):** Solsticio de Verano (Punto más alto del sol).\n"
+                "* **Línea Cian (Guiones):** Solsticio de Invierno (Punto más bajo del sol).\n\n"
+                "**2. Extremos del Amanecer**\n"
+                "* **Línea Magenta (Punteada):** Amanecer más tardío.\n"
+                "* **Línea Verde Claro (Punteada):** Amanecer más temprano.\n\n"
+                "**3. Extremos del Atardecer**\n"
                 "* **Línea Roja (Punteada):** Atardecer más tardío.\n"
-                "* **Línea Azul (Punteada):** Atardecer más temprano.\n"
-                "* **Líneas Blancas (Sólidas):** Días de cambio de hora local."
+                "* **Línea Azul (Punteada):** Atardecer más temprano.\n\n"
+                "**4. Ajustes de Reloj Social**\n"
+                "* **Línea Blanca (Sólida):** Días de cambio de hora local."
             )
 
 except Exception as e:
