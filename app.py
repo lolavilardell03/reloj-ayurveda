@@ -126,15 +126,13 @@ try:
         max_sunrise, min_sunrise = -1, 999
         date_max_sunrise, date_min_sunrise = None, None
         
-        # Inicializamos variables para evitar el error 'UnboundLocalError'
+        # Para extremos del mediodía (Ecuación del tiempo)
+        # Usamos el valor M matemático (UTC) para encontrar los extremos reales sin saltos de DST
         max_m_val, min_m_val = -1, 999
         d_max_noon, d_min_noon = None, None
-        
-        # Lista para capturar los 8 puntos del analema (4 picos + 4 cruces)
-        puntos_8_analema = []
-        # Lista para guardar los 8 puntos críticos (máximos, mínimos y sillas)
-        puntos_criticos_cenit = []
-        valores_m = [] # Necesitamos primero recolectar todos los valores
+        # Puntos secundarios (relativos)
+        rel_max_val, rel_min_val = -1, 999
+        d_rel_max_noon, d_rel_min_noon = None, None
 
         for d in dates:
             (t1, t2, t3, t4, t5, t6, bm, M), offset, P_val = get_solar_events(d.date())
@@ -148,40 +146,26 @@ try:
             if h_rise > max_sunrise: max_sunrise, date_max_sunrise = h_rise, d.date()
             if h_rise < min_sunrise: min_sunrise, date_min_sunrise = h_rise, d.date()
 
-            # Máximos y mínimos absolutos (Febrero y Noviembre)
+            # Lógica para extremos del mediodía (Analema)
             if M > max_m_val: max_m_val, d_max_noon = M, d.date()
             if M < min_m_val: min_m_val, d_min_noon = M, d.date()
+            # Inflexiones secundarias (Mayo y Julio aprox)
+            mes = d.month
+            if mes in [5, 6] and M < rel_min_val: rel_min_val, d_rel_min_noon = M, d.date()
+            if mes in [7, 8] and M > rel_max_val: rel_max_val, d_rel_max_noon = M, d.date()
+
+            for k, val in zip(claves, [t1, t2, t3, t4, t5, t6, bm, M]):
+                v[k].append(min(24.0, val) if k == 't6' else val)
+                s[k].append(formato_hhmm(val + offset))
             
-            # Guardamos el valor matemático del cénit
-            v['M'].append(M)
-            s['M'].append(formato_hhmm(M + offset))
-            
-            # --- FINAL DEL BUCLE FOR ---
-        
-            # Al salir del bucle (fuera del 'for d in dates'), calculamos los puntos críticos
-            promedio_m = sum(v['M']) / len(v['M'])
-            
-            for i in range(1, len(v['M']) - 1):
-                prev, curr, post = v['M'][i-1], v['M'][i], v['M'][i+1]
-                
-                # 1. Detectar los 4 Extremos (2 máximos y 2 mínimos)
-                if (curr > prev and curr > post) or (curr < prev and curr < post):
-                    if dates[i].date() not in puntos_8_analema:
-                        puntos_8_analema.append(dates[i].date())
-                    
-                # 2. Detectar los 4 Puntos donde cruza la media (nodos del analema)
-                elif (prev < promedio_m < curr) or (prev > promedio_m > curr):
-                    if len(puntos_8_analema) < 8:
-                        puntos_8_analema.append(dates[i].date())
-        
-            # Devolvemos exactamente 9 elementos
-            return dates, v, s, dst_dates, date_max_sunset, date_min_sunset, date_max_sunrise, date_min_sunrise, puntos_8_analema
-        
+        return dates, v, s, dst_dates, date_max_sunset, date_min_sunset, date_max_sunrise, date_min_sunrise, d_max_noon, d_min_noon, d_rel_max_noon, d_rel_min_noon
+
     with tab_grafo:
         with st.spinner('Procesando ciclo anual...'):
             año_act = datetime.datetime.now().year
             res = obtener_datos_anuales(ubicacion, año_act)
-            dates, v, s, dst_dates, d_max_set, d_min_set, d_max_rise, d_min_rise, puntos_8_analema = res            
+            dates, v, s, dst_dates, d_max_set, d_min_set, d_max_rise, d_min_rise, d_max_n, d_min_n, d_rel_max, d_rel_min = res
+            
             x = [d.date() for d in dates]
             fig_grafo = go.Figure()
 
@@ -227,9 +211,9 @@ try:
             add_vline(d_max_rise, "magenta", "dot"); add_vline(d_min_rise, "lightgreen", "dot")
             add_vline(d_max_set, "red", "dot"); add_vline(d_min_set, "blue", "dot")
             
-            # Dibujamos los 8 marcadores amarillos (4 picos y 4 cruces)
-            for fecha_punto in puntos_8_analema:
-                add_vline(fecha_punto, "yellow", "dot")
+            # Extremos del Cénit (Amarillo)
+            for d_noon in [d_max_n, d_min_n, d_rel_max, d_rel_min]:
+                add_vline(d_noon, "yellow", "dot")
             
             for d_dst in dst_dates: add_vline(d_dst, "white", "solid")
 
@@ -240,7 +224,7 @@ try:
 
             st.markdown("---")
             st.markdown("**1. Solsticios:** Naranja (Verano), Cian (Invierno).")
-            st.markdown("**2. Cénit Solar:** Línea naranja continua. Marcadores amarillos en sus 8 puntos críticos (4 extremos y 4 puntos de equilibrio anuales).")
+            st.markdown("**2. Cénit Solar:** Línea naranja continua. Marcadores amarillos en sus máximos y mínimos anuales.")
             st.markdown("**3. Amanecer:** Magenta (tardío), Verde (temprano).")
             st.markdown("**4. Atardecer:** Rojo (tardío), Azul (temprano).")
             st.markdown("**5. Reloj:** Líneas blancas (cambio de hora social).")
