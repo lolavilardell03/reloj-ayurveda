@@ -7,10 +7,10 @@ from astral import LocationInfo
 from astral.sun import sun
 
 st.set_page_config(page_title="Reloj Ayurvédico", page_icon="🧘‍♂️", layout="wide")
-st.title("🕰️ Tu Reloj Ayurvédico Personal")
+st.title("Tu Reloj Ayurvédico Personal")
 
 # --- 1. SELECTOR DE UBICACIÓN ---
-ubicacion = st.selectbox("📍 Selecciona tu ubicación:", ["Palma (Islas Baleares)", "Alcoy (Alicante)"])
+ubicacion = st.selectbox("Selecciona tu ubicación:", ["Palma (Islas Baleares)", "Alcoy (Alicante)"])
 
 if "Palma" in ubicacion:
     loc = LocationInfo("Palma", "Spain", "Europe/Madrid", 39.5696, 2.6502)
@@ -30,8 +30,6 @@ def formato_hhmm(hora_decimal):
 
 # --- CÁLCULOS MATEMÁTICOS ---
 def calcular_fases(fecha_dia):
-    # SOLUCIÓN AL BUG DE LA ZONA HORARIA: usar tz.localize en lugar de .replace()
-    # Esto garantiza que el horario de verano (DST) se aplique perfectamente.
     medianoche = tz.localize(datetime.datetime.combine(fecha_dia, datetime.time.min))
 
     s_today = sun(loc.observer, date=fecha_dia, tzinfo=tz)
@@ -61,13 +59,70 @@ def calcular_fases(fecha_dia):
     t5 = horas_desde_medianoche(P_today)
     t6 = horas_desde_medianoche(P_today + datetime.timedelta(hours=L_n3_today))
     
-    # Inicio de Vata Noche (para mostrar en el texto)
     t_vn = horas_desde_medianoche(P_today + datetime.timedelta(hours=2 * L_n3_today))
-    
     bm = horas_desde_medianoche(A_today - datetime.timedelta(hours=1.6))
 
     return t1, t2, t3, t4, t5, t6, t_vn, bm
 
-# COLORES COMPARTIDOS (Ahora son idénticos para gráfico y círculo)
-# Usamos una opacidad de 0.6 para que se vean bien sólidos pero mantengan el estilo
-c_pitta_n = '
+# --- COLORES COMPARTIDOS ---
+c_pitta_n = 'rgba(139, 0, 0, 0.6)'
+c_vatta_n = 'rgba(75, 0, 130, 0.6)'
+c_kapha_d = 'rgba(144, 238, 144, 0.6)'
+c_pitta_d = 'rgba(255, 69, 0, 0.6)'
+c_vatta_d = 'rgba(135, 206, 250, 0.6)'
+c_kapha_n = 'rgba(34, 139, 34, 0.6)'
+
+tab_circulo, tab_grafo = st.tabs(["Reloj Circular (Hoy)", "Ciclo Anual (Primavera)"])
+
+# ---------------------------------------------------------
+# PESTAÑA 1: RELOJ CIRCULAR + TEXTO
+# ---------------------------------------------------------
+with tab_circulo:
+    hoy = datetime.datetime.now(tz).date()
+    t1, t2, t3, t4, t5, t6, t_vn, bm = calcular_fases(hoy)
+    
+    col_texto, col_circulo = st.columns([1, 2])
+    
+    with col_texto:
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown(f"### Horario en {ubicacion.split(' ')[0]}")
+        st.markdown(f"**Brahma Muhurta:** `{formato_hhmm(bm)}`")
+        st.markdown(f"**Amanecer (Kapha):** `{formato_hhmm(t2)}`")
+        st.markdown(f"**Inicio Pitta:** `{formato_hhmm(t3)}`")
+        st.markdown(f"**Inicio Vata:** `{formato_hhmm(t4)}`")
+        st.markdown(f"**Atardecer (Kapha):** `{formato_hhmm(t5)}`")
+        st.markdown(f"**Pitta Noche:** `{formato_hhmm(t6)}`")
+        st.markdown(f"**Vata Noche:** `{formato_hhmm(t_vn)}`")
+
+    with col_circulo:
+        t6_limitado = min(24.0, t6)
+        
+        duraciones = [t1, t2 - t1, t3 - t2, t4 - t3, t5 - t4, t6_limitado - t5]
+        nombres = ['Pitta Noche', 'Vatta Noche', 'Kapha Mañana', 'Pitta Día', 'Vatta Tarde', 'Kapha Noche']
+        colores = [c_pitta_n, c_vatta_n, c_kapha_d, c_pitta_d, c_vatta_d, c_kapha_n]
+        
+        if t6 < 24.0:
+            duraciones.append(24.0 - t6)
+            nombres.append('Pitta Noche')
+            colores.append(c_pitta_n)
+
+        fig_circulo = go.Figure(go.Pie(
+            values=duraciones,
+            labels=nombres,
+            marker=dict(colors=colores, line=dict(width=0)), 
+            hole=0.4,
+            sort=False,
+            direction='clockwise',
+            rotation=270,
+            textinfo='label',
+            hovertemplate="<b>%{label}</b><br>Duración: %{value:.1f}h<extra></extra>"
+        ))
+
+        fig_circulo.update_layout(
+            template="plotly_dark", height=500, showlegend=False,
+            margin=dict(t=0, b=0, l=0, r=0),
+            annotations=[dict(text='24 H', x=0.5, y=0.5, font_size=30, showarrow=False)]
+        )
+        st.plotly_chart(fig_circulo, use_container_width=True)
+
+# ---------------------------------------------------------
