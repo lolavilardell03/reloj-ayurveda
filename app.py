@@ -110,7 +110,7 @@ try:
                 textinfo='label', hovertemplate="<b>%{label}</b><br>Duración: %{value:.1f}h<extra></extra>"
             ))
             fig_circulo.update_layout(template="plotly_dark", height=500, showlegend=False, margin=dict(t=0, b=0, l=0, r=0),
-                annotations=[dict(text='⋆✮☽☯︎☾✮⋆', x=0.5, y=0.5, font=dict(size=30), showarrow=False)])
+                annotations=[dict(text='✴︎', x=0.5, y=0.5, font=dict(size=30), showarrow=False)])
             st.plotly_chart(fig_circulo, use_container_width=True)
 
     def obtener_datos_anuales(ubicacion_nombre, año):
