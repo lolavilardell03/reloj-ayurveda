@@ -223,9 +223,11 @@ try:
             st.plotly_chart(fig_grafo, use_container_width=True)
 
             st.markdown("---")
-            st.markdown("### Leyenda de Eventos Astronómicos")
-            st.markdown("**1. Solsticios:** Naranja (Verano), Cian (Invierno). | **2. Cénit Solar:** Línea continua naranja. Marcadores amarillos en sus máximos y mínimos anuales.")
-            st.markdown("**3. Amanecer:** Magenta (tardío), Verde (temprano). | **4. Atardecer:** Rojo (tardío), Azul (temprano). | **5. Reloj:** Líneas blancas (cambio de hora).")
+            st.markdown("**1. Solsticios:** Naranja (Verano), Cian (Invierno).")
+            st.markdown("**2. Cénit Solar:** Línea naranja continua. Marcadores amarillos en sus máximos y mínimos anuales.")
+            st.markdown("**3. Amanecer:** Magenta (tardío), Verde (temprano).")
+            st.markdown("**4. Atardecer:** Rojo (tardío), Azul (temprano).")
+            st.markdown("**5. Reloj:** Líneas blancas (cambio de hora social).")
 
 except Exception as e:
     st.error("¡Oops! Ha ocurrido un error técnico interno:")
