@@ -186,7 +186,7 @@ try:
         def add_area_lunar(y_data, color):
             fig3.add_trace(go.Scatter(x=x_l, y=y_data, fill='tonexty', mode='lines', line=dict(width=0), fillcolor=color, hoverinfo='skip', showlegend=False))
             
-        fig3.add_trace(go.Scatter(x=x_l, y=[0]*len
+        fig3.add_trace(go.Scatter(x=x_l, y=[0]*len))
                                   
 except Exception:
     st.error("Error técnico:")
