@@ -174,7 +174,6 @@ try:
         
         v_l = {k: [] for k in ['t1', 't2', 't3', 't4', 't5', 't6', 'M']}
         for d in dates_l:
-            # CORRECCIÓN AQUÍ: Quitamos el tercer valor (_) para que coincida con lo que devuelve la función
             ev_vals, off = get_solar_events(d.date())
             for i, k in enumerate(['t1', 't2', 't3', 't4', 't5', 't6', 'bm', 'M']):
                 if k in v_l:
@@ -186,7 +185,38 @@ try:
         def add_area_lunar(y_data, color):
             fig3.add_trace(go.Scatter(x=x_l, y=y_data, fill='tonexty', mode='lines', line=dict(width=0), fillcolor=color, hoverinfo='skip', showlegend=False))
             
-        fig3.add_trace(go.Scatter(x=x_l, y=[0]*len))
+        # CORRECCIÓN AQUÍ: Cambiamos [0]*len por [0]*len(x_l)
+        fig3.add_trace(go.Scatter(x=x_l, y=[0]*len(x_l), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False))
+        
+        add_area_lunar(v_l['t1'], c_pitta_n)
+        add_area_lunar(v_l['t2'], c_vatta_n)
+        add_area_lunar(v_l['t3'], c_kapha_d)
+        add_area_lunar(v_l['t4'], c_pitta_d)
+        add_area_lunar(v_l['t5'], c_vatta_d)
+        add_area_lunar(v_l['t6'], c_kapha_n)
+        add_area_lunar([24]*len(x_l), c_pitta_n)
+        
+        # Línea Cénit suave
+        fig3.add_trace(go.Scatter(x=x_l, y=v_l['M'], line=dict(color='rgba(255, 140, 0, 0.2)'), name="Cénit"))
+
+        # Lunas
+        for i in range(1, len(dates_l)):
+            f_p, f_c = moon.phase(dates_l[i-1].date()), moon.phase(dates_l[i].date())
+            if f_c < f_p: fig3.add_vline(x=str(dates_l[i].date()), line_dash="dot", line_color="gray", opacity=0.5)
+            elif f_p < 14 <= f_c: fig3.add_vline(x=str(dates_l[i].date()), line_dash="dot", line_color="white", opacity=0.7)
+                
+        # Estaciones
+        for m, d_est in [(3,20), (6,21), (9,22), (12,21)]:
+            fig3.add_vline(x=str(datetime.date(año_lunar, m, d_est)), line_dash="dash", line_color="lightgreen", opacity=0.6)
+            
+        # Regla y Notas
+        for dr in dias_r: fig3.add_vline(x=dr, line_color="rgba(255, 100, 100, 0.4)", line_width=4)
+        for fn, tx in notas_dict.items():
+            if fn.startswith(str(año_lunar)):
+                fig3.add_trace(go.Scatter(x=[fn], y=[12], mode='markers', marker=dict(size=12, color='white', symbol='star'), hovertext=tx, name="Nota"))
+
+        fig3.update_layout(template="plotly_dark", height=600, margin=dict(l=0,r=0,t=30,b=0), yaxis=dict(range=[0,24]), showlegend=False)
+        st.plotly_chart(fig3, use_container_width=True)
                                   
 except Exception:
     st.error("Error técnico:")
