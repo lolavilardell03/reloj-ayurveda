@@ -157,10 +157,17 @@ try:
             x = [d.date() for d in dates]
             fig_grafo = go.Figure()
 
+            # --- LAS HERRAMIENTAS (FUNCIONES INTERNAS) ---
             def add_area(y_data, color, name):
                 fig_grafo.add_trace(go.Scatter(x=x, y=y_data, fill='tonexty', mode='lines', line=dict(width=0), fillcolor=color, hoverinfo='skip', showlegend=False, name=name))
             
-            # Áreas de color
+            def add_hover(y_data, text_data, name):
+                fig_grafo.add_trace(go.Scatter(x=x, y=y_data, customdata=text_data, mode='lines', line=dict(width=0), hovertemplate=f"<b>{name}</b>: %{{customdata}}<extra></extra>"))
+
+            def add_vline(d_val, color, dash='dot', op=0.7):
+                if d_val: fig_grafo.add_vline(x=str(d_val), line_dash=dash, line_color=color, opacity=op)
+
+            # --- DIBUJO DE ÁREAS ---
             fig_grafo.add_trace(go.Scatter(x=x, y=[0]*len(x), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False))
             add_area(v['t1'], c_pitta_n, "Pitta N."); add_area(v['t2'], c_vatta_n, "Vata N."); add_area(v['t3'], c_kapha_d, "Kapha M.")
             add_area(v['t4'], c_pitta_d, "Pitta D."); add_area(v['t5'], c_vatta_d, "Vata T."); add_area(v['t6'], c_kapha_n, "Kapha N."); add_area([24]*len(x), c_pitta_n, "Pitta N.")
@@ -169,7 +176,6 @@ try:
             c_mystic_blue_area = 'rgba(100, 130, 255, 0.6)'
             fig_grafo.add_trace(go.Scatter(x=list(x) + list(x)[::-1], y=list(v['bm_e']) + list(v['bm'])[::-1], fill='toself', fillcolor=c_mystic_blue_area, mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False))
             
-            # Línea Cénit
             fig_grafo.add_trace(go.Scatter(x=x, y=v['M'], mode='lines', line=dict(color='#FF8C00', width=2), hoverinfo='skip', showlegend=False))
 
             # Línea Turquesa Chillona (Hoy)
@@ -177,37 +183,34 @@ try:
             if dates[0].date() <= hoy_real <= dates[-1].date():
                 fig_grafo.add_vline(x=str(hoy_real), line_width=4, line_color="cyan", line_dash="solid", opacity=1.0)
 
-            # Hover unificado (Orden inverso para que Brahma Muhurta esté arriba)
-            add_hover(v['t1'], s['t1'], "Vata Noche"); add_hover(v['t6'], s['t6'], "Pitta Noche"); add_hover(v['t5'], s['t5'], "Atardecer"); add_hover(v['t4'], s['t4'], "Inicio Vata")
-            add_hover(v['M'], s['M'], "Cénit Solar"); add_hover(v['t3'], s['t3'], "Inicio Pitta"); add_hover(v['t2'], s['t2'], "Amanecer")
-            add_hover(v['bm_e'], s['bm_e'], "Brahma Muhurta (Fin)"); add_hover(v['bm'], s['bm'], "Brahma Muhurta (Inicio)")
+            # --- INFORMACIÓN AL PASAR EL RATÓN (HOVER) ---
+            add_hover(v['t1'], s['t1'], "Vata Noche")
+            add_hover(v['t6'], s['t6'], "Pitta Noche")
+            add_hover(v['t5'], s['t5'], "Atardecer (Kapha)")
+            add_hover(v['t4'], s['t4'], "Inicio Vata")
+            add_hover(v['M'], s['M'], "Cénit Solar")
+            add_hover(v['t3'], s['t3'], "Inicio Pitta")
+            add_hover(v['t2'], s['t2'], "Amanecer (Kapha)")
+            add_hover(v['bm_e'], s['bm_e'], "Brahma Muhurta (Final)")
+            add_hover(v['bm'], s['bm'], "Brahma Muhurta (Inicio)")
 
-            # --- RECUPERACIÓN DE LÍNEAS INFORMATIVAS ---
-            def add_vline(d_val, color, dash='dot', op=0.7):
-                if d_val: fig_grafo.add_vline(x=str(d_val), line_dash=dash, line_color=color, opacity=op)
-
-            # Solsticios
+            # --- LÍNEAS INFORMATIVAS ---
             s_ver, s_inv = datetime.date(año_act, 6, 21), datetime.date(año_act, 12, 21)
             if s_ver < dates[0].date(): s_ver = datetime.date(año_act+1, 6, 21)
             add_vline(s_ver, "orange", "dash"); add_vline(s_inv, "cyan", "dash")
             
-            # Extremos (Amanecer / Atardecer)
             add_vline(d_max_rise, "magenta"); add_vline(d_min_rise, "lightgreen")
             add_vline(d_max_set, "red"); add_vline(d_min_set, "blue")
             
-            # 8 Marcadores Amarillos (Cénit)
             for p in p8: add_vline(p, "yellow", op=0.6)
-            
-            # Cambio de hora (DST)
             for dst in dst_dates: add_vline(dst, "white", dash="solid", op=0.3)
 
             fig_grafo.update_layout(xaxis=dict(tickformat="%d %b"), yaxis=dict(range=[0, 24]), hovermode="x unified", template="plotly_dark", height=600, margin=dict(l=0, r=0, t=30, b=0))
             st.plotly_chart(fig_grafo, use_container_width=True)
 
-            # Leyendas recuperadas
             st.markdown("---")
             st.markdown("**1. Solsticios:** Naranja (Verano), Cian (Invierno). | **2. Cénit Solar:** 8 marcadores amarillos.")
-            st.markdown("**3. Brahma Muhurta:** Franja azul místico (Blue Hour). | **4. Amanecer:** Magenta (tardío), Verde (temprano).")
+            st.markdown("**3. Brahma Muhurta:** Franja azul místico. | **4. Amanecer:** Magenta (tardío), Verde (temprano).")
             st.markdown("**5. Atardecer:** Rojo (tardío), Azul (temprano). | **6. Hoy:** Línea cian eléctrica.")
     
     # --- PESTAÑA 3: LUNAR ---
