@@ -229,34 +229,34 @@ try:
             st.markdown("**4. Atardecer:** Rojo (tardío), Azul (temprano).")
             st.markdown("**5. Reloj:** Líneas blancas (cambio de hora social).")
 
-with tab3:
-    st.subheader("Ciclo Lunar y Diario Personal")
-    col_reg, col_nota = st.columns(2)
-    with col_reg:
-        f_r = st.date_input("Marcar día de regla:", value=datetime.date.today())
-        if st.button("Guardar regla"): cursor.execute('INSERT OR IGNORE INTO regla (fecha) VALUES (?)', (str(f_r),)); conn.commit(); st.success("Día guardado")
-    with col_nota:
-        f_n = st.date_input("Fecha de la nota:", value=datetime.date.today(), key="f_n")
-        t_n = st.text_input("Nota breve:")
-        if st.button("Guardar nota"): cursor.execute('INSERT OR REPLACE INTO notas (fecha, texto) VALUES (?, ?)', (str(f_n), t_n)); conn.commit(); st.info("Nota guardada")
-    
-    cursor.execute('SELECT fecha FROM regla'); dias_r = [f[0] for f in cursor.fetchall()]
-    cursor.execute('SELECT * FROM notas'); notas_dict = dict(cursor.fetchall())
-    
-    fig3 = go.Figure()
-    fig3.add_trace(go.Scatter(x=x, y=v['M'], line=dict(color='rgba(255, 140, 0, 0.2)'), name="Cénit"))
-    for d in dias_r: fig3.add_vline(x=d, line_color="rgba(255, 100, 100, 0.4)", line_width=4)
-    for d_l in dates:
-        fase = moon.phase(d_l.date())
-        if fase < 1: fig3.add_vline(x=str(d_l.date()), line_dash="dot", line_color="gray", opacity=0.3)
-        elif 14 <= fase <= 15: fig3.add_vline(x=str(d_l.date()), line_dash="dot", line_color="white", opacity=0.5)
-    for f_nota, txt in notas_dict.items():
-        fig3.add_trace(go.Scatter(x=[f_nota], y=[12], mode='markers', marker=dict(size=12, color='white', symbol='star'), hovertext=txt, name="Nota"))
-    
-    fig3.update_layout(template="plotly_dark", height=500, margin=dict(l=0,r=0,t=30,b=0), yaxis=dict(range=[0,24]), showlegend=False)
-    st.plotly_chart(fig3, use_container_width=True)
-    st.markdown("- 🔴 **Rojo suave:** Regla registrada.  \n- ⚪ **Líneas punteadas:** Fases lunares (Blanco: Llena / Gris: Nueva).  \n- ⭐ **Estrellas:** Tus notas (pasa el ratón encima).")
-    
+    with tab3:
+        st.subheader("Ciclo Lunar y Diario Personal")
+        col_reg, col_nota = st.columns(2)
+        with col_reg:
+            f_r = st.date_input("Marcar día de regla:", value=datetime.date.today())
+            if st.button("Guardar regla"): cursor.execute('INSERT OR IGNORE INTO regla (fecha) VALUES (?)', (str(f_r),)); conn.commit(); st.success("Día guardado")
+        with col_nota:
+            f_n = st.date_input("Fecha de la nota:", value=datetime.date.today(), key="f_n")
+            t_n = st.text_input("Nota breve:")
+            if st.button("Guardar nota"): cursor.execute('INSERT OR REPLACE INTO notas (fecha, texto) VALUES (?, ?)', (str(f_n), t_n)); conn.commit(); st.info("Nota guardada")
+        
+        cursor.execute('SELECT fecha FROM regla'); dias_r = [f[0] for f in cursor.fetchall()]
+        cursor.execute('SELECT * FROM notas'); notas_dict = dict(cursor.fetchall())
+        
+        fig3 = go.Figure()
+        fig3.add_trace(go.Scatter(x=x, y=v['M'], line=dict(color='rgba(255, 140, 0, 0.2)'), name="Cénit"))
+        for d in dias_r: fig3.add_vline(x=d, line_color="rgba(255, 100, 100, 0.4)", line_width=4)
+        for d_l in dates:
+            fase = moon.phase(d_l.date())
+            if fase < 1: fig3.add_vline(x=str(d_l.date()), line_dash="dot", line_color="gray", opacity=0.3)
+            elif 14 <= fase <= 15: fig3.add_vline(x=str(d_l.date()), line_dash="dot", line_color="white", opacity=0.5)
+        for f_nota, txt in notas_dict.items():
+            fig3.add_trace(go.Scatter(x=[f_nota], y=[12], mode='markers', marker=dict(size=12, color='white', symbol='star'), hovertext=txt, name="Nota"))
+        
+        fig3.update_layout(template="plotly_dark", height=500, margin=dict(l=0,r=0,t=30,b=0), yaxis=dict(range=[0,24]), showlegend=False)
+        st.plotly_chart(fig3, use_container_width=True)
+        st.markdown("- 🔴 **Rojo suave:** Regla registrada.  \n- ⚪ **Líneas punteadas:** Fases lunares (Blanco: Llena / Gris: Nueva).  \n- ⭐ **Estrellas:** Tus notas (pasa el ratón encima).")
+        
 except Exception as e:
     st.error("¡Oops! Ha ocurrido un error técnico interno:")
     st.code(traceback.format_exc())
