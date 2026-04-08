@@ -65,83 +65,81 @@ try:
 
     # --- PESTAÑA 1: RELOJ DIARIO ---
     with tab_circulo:
-    hoy = datetime.datetime.now(tz).date()
-    # Obtenemos los eventos solares
-    (t1, t2, t3, t4, t5, t6, bm, M), offset = get_solar_events(hoy)
+        hoy = datetime.datetime.now(tz).date()
+        # Obtenemos los eventos solares
+        (t1, t2, t3, t4, t5, t6, bm, M), offset = get_solar_events(hoy)
+        
+        # --- LÓGICA MÍSTICA DE BRAHMA MUHURTA ---
+        bm_inicio = t2 - 1.6
+        bm_final = t2 - 0.8
+        c_mystic_blue = 'rgba(100, 130, 255, 0.8)' # Azul místico fresco y profundo
+
+        col_t, col_c = st.columns([1, 2])
+        
+        with col_t:
+            st.markdown(f"### {ubicacion.split(' ')[0]}")
+            st.markdown(f"**✨ Brahma Muhurta (Inicio):** `{formato_hhmm(bm_inicio + offset)}`  \n"
+                        f"**✨ Brahma Muhurta (Final):** `{formato_hhmm(bm_final + offset)}`  \n"
+                        f"---  \n"
+                        f"**Amanecer (Kapha):** `{formato_hhmm(t2 + offset)}`  \n"
+                        f"**Inicio Pitta:** `{formato_hhmm(t3 + offset)}`  \n"
+                        f"**Mediodía Solar:** `{formato_hhmm(M + offset)}`  \n"
+                        f"**Inicio Vata:** `{formato_hhmm(t4 + offset)}`  \n"
+                        f"**Atardecer (Kapha):** `{formato_hhmm(t5 + offset)}`  \n"
+                        f"**Pitta Noche:** `{formato_hhmm(t6 + offset)}`  \n"
+                        f"**Vata Noche:** `{formato_hhmm(t1 + offset)}` ")
+
+        with col_c:
+            # Duraciones del gráfico
+            duraciones = [
+                max(0.1, t1),               # Pitta Noche
+                bm_inicio - t1,             # Vata Noche (Silencio inicial)
+                0.8,                        # BRAHMA MUHURTA (Bloque central 48 min)
+                0.8,                        # Vata Noche (Transición final 48 min)
+                t3 - t2,                    # Kapha Mañana
+                t4 - t3,                    # Pitta Día
+                t5 - t4,                    # Vata Tarde
+                min(24.0, t6) - t5          # Kapha Noche
+            ]
+            
+            nombres = [
+                'Pitta Noche', 'Vata Noche', '✨ Brahma Muhurta', 
+                'Vata (Transición)', 'Kapha Mañana', 'Pitta Día', 
+                'Vata Tarde', 'Kapha Noche'
+            ]
+            
+            colores = [
+                c_pitta_n, c_vatta_n, c_mystic_blue, 
+                c_vatta_n, c_kapha_d, c_pitta_d, 
+                c_vatta_d, c_kapha_n
+            ]
+            
+            if t6 < 24.0:
+                duraciones.append(24.0 - t6)
+                nombres.append('Pitta Noche')
+                colores.append(c_pitta_n)
+
+            fig = go.Figure(go.Pie(
+                values=duraciones, 
+                labels=nombres, 
+                marker=dict(colors=colores, line=dict(color='#111', width=1.5)), 
+                hole=0.4, 
+                sort=False, 
+                direction='clockwise', 
+                rotation=270, 
+                textinfo='label'
+            ))
+            
+            fig.update_layout(
+                template="plotly_dark", 
+                height=500, 
+                showlegend=False, 
+                margin=dict(t=0,b=0,l=0,r=0),
+                annotations=[dict(text='🦀', x=0.5, y=0.5, font=dict(size=35), showarrow=False)]
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
     
-    # --- LÓGICA MÍSTICA DE BRAHMA MUHURTA ---
-    # Comienza 96 min (1.6h) antes y termina 48 min (0.8h) antes del amanecer (t2)
-    bm_inicio = t2 - 1.6
-    bm_final = t2 - 0.8
-    c_mystic_blue = 'rgba(100, 130, 255, 0.8)' # Azul místico fresco y profundo
-
-    col_t, col_c = st.columns([1, 2])
-    
-    with col_t:
-        st.markdown(f"### {ubicacion.split(' ')[0]}")
-        st.markdown(f"**✨ Brahma Muhurta (Inicio):** `{formato_hhmm(bm_inicio + offset)}`  \n"
-                    f"**✨ Brahma Muhurta (Final):** `{formato_hhmm(bm_final + offset)}`  \n"
-                    f"---  \n"
-                    f"**Amanecer (Kapha):** `{formato_hhmm(t2 + offset)}`  \n"
-                    f"**Inicio Pitta:** `{formato_hhmm(t3 + offset)}`  \n"
-                    f"**Mediodía Solar:** `{formato_hhmm(M + offset)}`  \n"
-                    f"**Inicio Vata:** `{formato_hhmm(t4 + offset)}`  \n"
-                    f"**Atardecer (Kapha):** `{formato_hhmm(t5 + offset)}`  \n"
-                    f"**Pitta Noche:** `{formato_hhmm(t6 + offset)}`  \n"
-                    f"**Vata Noche:** `{formato_hhmm(t1 + offset)}` ")
-
-    with col_c:
-        # Dividimos el círculo en los doshas + el bloque especial de BM
-        duraciones = [
-            max(0.1, t1),               # Pitta Noche
-            bm_inicio - t1,             # Vata Noche (Silencio inicial)
-            0.8,                        # BRAHMA MUHURTA (Bloque central 48 min)
-            0.8,                        # Vata Noche (Transición final 48 min)
-            t3 - t2,                    # Kapha Mañana
-            t4 - t3,                    # Pitta Día
-            t5 - t4,                    # Vata Tarde
-            min(24.0, t6) - t5          # Kapha Noche
-        ]
-        
-        nombres = [
-            'Pitta Noche', 'Vata Noche', '✨ Brahma Muhurta', 
-            'Vata (Transición)', 'Kapha Mañana', 'Pitta Día', 
-            'Vata Tarde', 'Kapha Noche'
-        ]
-        
-        colores = [
-            c_pitta_n, c_vatta_n, c_mystic_blue, 
-            c_vatta_n, c_kapha_d, c_pitta_d, 
-            c_vatta_d, c_kapha_n
-        ]
-        
-        # Completar el círculo si Pitta Noche termina antes de las 24:00
-        if t6 < 24.0:
-            duraciones.append(24.0 - t6)
-            nombres.append('Pitta Noche')
-            colores.append(c_pitta_n)
-
-        fig = go.Figure(go.Pie(
-            values=duraciones, 
-            labels=nombres, 
-            marker=dict(colors=colores, line=dict(color='#111', width=1.5)), 
-            hole=0.4, 
-            sort=False, 
-            direction='clockwise', 
-            rotation=270, 
-            textinfo='label'
-        ))
-        
-        fig.update_layout(
-            template="plotly_dark", 
-            height=500, 
-            showlegend=False, 
-            margin=dict(t=0,b=0,l=0,r=0),
-            annotations=[dict(text='🦀', x=0.5, y=0.5, font=dict(size=35), showarrow=False)]
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-
     # --- FUNCIÓN DATOS ANUALES (CON 8 MARCADORES) ---
     def obtener_datos_anuales(ubicacion_nombre, año):
         dates = pd.date_range(start=f'{año}-03-20', end=f'{año+1}-03-19', freq='D')
