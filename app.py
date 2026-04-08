@@ -119,17 +119,17 @@ try:
         
         with col_t:
             st.markdown(f"### {ubicacion.split(' ')[0]}")
-            # Lista estilizada para todos los eventos
+            # Leyenda limpia: Solo emojis en BM y Cénit
             st.write(f"**✨ Brahma Muhurta (Inicio):** `{formato_hhmm(bm_inicio + offset)}`")
             st.write(f"**✨ Brahma Muhurta (Final):** `{formato_hhmm(bm_final + offset)}`")
             st.markdown("---")
-            st.write(f"** Amanecer (Kapha):** `{formato_hhmm(t2 + offset)}`")
-            st.write(f"** Inicio Pitta:** `{formato_hhmm(t3 + offset)}`")
+            st.write(f"**Amanecer (Kapha):** `{formato_hhmm(t2 + offset)}`")
+            st.write(f"**Inicio Pitta:** `{formato_hhmm(t3 + offset)}`")
             st.write(f"**☀️ Mediodía Solar:** `{formato_hhmm(M + offset)}`")
-            st.write(f"** Inicio Vata:** `{formato_hhmm(t4 + offset)}`")
-            st.write(f"** Atardecer (Kapha):** `{formato_hhmm(t5 + offset)}`")
-            st.write(f"** Pitta Noche:** `{formato_hhmm(t6 + offset)}`")
-            st.write(f"** Vata Noche:** `{formato_hhmm(t1 + offset)}` ")
+            st.write(f"**Inicio Vata:** `{formato_hhmm(t4 + offset)}`")
+            st.write(f"**Atardecer (Kapha):** `{formato_hhmm(t5 + offset)}`")
+            st.write(f"**Pitta Noche:** `{formato_hhmm(t6 + offset)}`")
+            st.write(f"**Vata Noche:** `{formato_hhmm(t1 + offset)}` ")
 
         with col_c:
             # Duraciones del gráfico
@@ -137,17 +137,18 @@ try:
                 max(0.1, t1),               # Pitta Noche
                 bm_inicio - t1,             # Vata Noche (Silencio)
                 0.8,                        # Brahma Muhurta (48 min)
-                0.8,                        # Vata Transición (Sin texto)
+                0.8,                        # Transición (48 min)
                 t3 - t2,                    # Kapha Mañana
                 t4 - t3,                    # Pitta Día
                 t5 - t4,                    # Vata Tarde
                 min(24.0, t6) - t5          # Kapha Noche
             ]
             
-            # Hemos dejado el sector de transición sin texto ("") para limpiar el diseño
+            # Usamos un espacio en blanco ' ' en lugar de una cadena vacía 
+            # para evitar que Plotly asigne un número automáticamente.
             nombres = [
                 'Pitta Noche', 'Vata Noche', '✨ Brahma Muhurta', 
-                '', 'Kapha Mañana', 'Pitta Día', 
+                ' ', 'Kapha Mañana', 'Pitta Día', 
                 'Vata Tarde', 'Kapha Noche'
             ]
             
@@ -165,7 +166,7 @@ try:
             fig = go.Figure(go.Pie(
                 values=duraciones, 
                 labels=nombres, 
-                marker=dict(colors=colores, line=dict(width=0)), # Sin bordes negros
+                marker=dict(colors=colores, line=dict(width=0)),
                 hole=0.4, 
                 sort=False, 
                 direction='clockwise', 
