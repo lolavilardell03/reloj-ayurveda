@@ -119,7 +119,7 @@ try:
         
         with col_t:
             st.markdown(f"### {ubicacion.split(' ')[0]}")
-            # Lista estilizada y espaciada
+            # Lista estilizada para todos los eventos
             st.write(f"**✨ Brahma Muhurta (Inicio):** `{formato_hhmm(bm_inicio + offset)}`")
             st.write(f"**✨ Brahma Muhurta (Final):** `{formato_hhmm(bm_final + offset)}`")
             st.markdown("---")
@@ -136,7 +136,7 @@ try:
             duraciones = [
                 max(0.1, t1),               # Pitta Noche
                 bm_inicio - t1,             # Vata Noche (Silencio)
-                0.8,                        # Brahma Muhurta
+                0.8,                        # Brahma Muhurta (48 min)
                 0.8,                        # Vata Transición (Sin texto)
                 t3 - t2,                    # Kapha Mañana
                 t4 - t3,                    # Pitta Día
@@ -165,7 +165,7 @@ try:
             fig = go.Figure(go.Pie(
                 values=duraciones, 
                 labels=nombres, 
-                marker=dict(colors=colores, line=dict(width=0)), # Sin bordes
+                marker=dict(colors=colores, line=dict(width=0)), # Sin bordes negros
                 hole=0.4, 
                 sort=False, 
                 direction='clockwise', 
@@ -176,7 +176,12 @@ try:
             fig.update_layout(
                 template="plotly_dark", 
                 height=500, 
-                showlegend=False,
+                showlegend=False, 
+                margin=dict(t=0,b=0,l=0,r=0),
+                annotations=[dict(text='🦀', x=0.5, y=0.5, font=dict(size=35), showarrow=False)]
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
 
     # --- PESTAÑA 2: CICLO ANUAL ---
     with tab_grafo:
