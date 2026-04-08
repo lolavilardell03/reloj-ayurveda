@@ -77,54 +77,126 @@ try:
             st.plotly_chart(fig, use_container_width=True)
 
     # --- FUNCIÓN DATOS ANUALES (CON 8 MARCADORES) ---
-    def obtener_datos_anuales(año_inf):
-        dates = pd.date_range(start=f'{año_inf}-01-01', end=f'{año_inf}-12-31', freq='D')
-        v, s = {k: [] for k in ['t1', 't2', 't3', 't4', 't5', 't6', 'bm', 'M']}, {k: [] for k in ['t1', 't2', 't3', 't4', 't5', 't6', 'bm', 'M']}
-        dst_dates, puntos_8 = [], []
-        prev_off = None
-        m_set, m_rise, m_val = (-1, 999, None, None), (-1, 999, None, None), (-1, 999)
+    def obtener_datos_anuales(ubicacion_nombre, año):
+        dates = pd.date_range(start=f'{año}-03-20', end=f'{año+1}-03-19', freq='D')
+        claves = ['t1', 't2', 't3', 't4', 't5', 't6', 'bm', 'M']
+        v = {k: [] for k in claves}
+        s = {k: [] for k in claves}
+        dst_dates = []
+        prev_offset = None
+
+        max_sunset, min_sunset = -1, 999
+        date_max_sunset, date_min_sunset = None, None
+        max_sunrise, min_sunrise = -1, 999
+        date_max_sunrise, date_min_sunrise = None, None
+        
+        max_m_val, min_m_val = -1, 999
+        puntos_8_analema = []
 
         for d in dates:
-            ev, off = get_solar_events(d.date())
-            if prev_off is not None and off != prev_off: dst_dates.append(d.date())
-            prev_off = off
+            # Llamada a la función (esperando 2 valores: ev y offset)
+            ev, offset = get_solar_events(d.date())
+            if prev_offset is not None and offset != prev_offset:
+                dst_dates.append(d.date())
+            prev_offset = offset
             
-            h_rise, h_set = ev[1] + off, ev[4] + off
-            if h_set > m_set[0]: m_set = (h_set, m_set[1], d.date(), m_set[3])
-            if h_set < m_set[1]: m_set = (m_set[0], h_set, m_set[2], d.date())
-            if h_rise > m_rise[0]: m_rise = (h_rise, m_rise[1], d.date(), m_rise[3])
-            if h_rise < m_rise[1]: m_rise = (m_rise[0], h_rise, m_rise[2], d.date())
-            
-            for i, k in enumerate(['t1', 't2', 't3', 't4', 't5', 't6', 'bm', 'M']):
-                v[k].append(min(24.0, ev[i]) if k == 't6' else ev[i])
-                s[k].append(formato_hhmm(ev[i] + off))
+            h_rise, h_set = ev[1] + offset, ev[4] + offset
+            if h_set > max_sunset: max_sunset, date_max_sunset = h_set, d.date()
+            if h_set < min_sunset: min_sunset, date_min_sunset = h_set, d.date()
+            if h_rise > max_sunrise: max_sunrise, date_max_sunrise = h_rise, d.date()
+            if h_rise < min_sunrise: min_sunrise, date_min_sunrise = h_rise, d.date()
 
+            # Guardamos M para los 8 puntos
+            v['M'].append(ev[7])
+            s['M'].append(formato_hhmm(ev[7] + offset))
+
+            for i, k in enumerate(claves):
+                if k != 'M':
+                    v[k].append(min(24.0, ev[i]) if k == 't6' else ev[i])
+                    s[k].append(formato_hhmm(ev[i] + offset))
+
+        # Cálculo de los 8 puntos críticos del analema
         promedio_m = sum(v['M']) / len(v['M'])
         for i in range(1, len(v['M']) - 1):
             prev, curr, post = v['M'][i-1], v['M'][i], v['M'][i+1]
-            if (curr > prev and curr > post) or (curr < prev and curr < post): puntos_8.append(dates[i].date())
+            if (curr > prev and curr > post) or (curr < prev and curr < post):
+                puntos_8_analema.append(dates[i].date())
             elif (prev < promedio_m < curr) or (prev > promedio_m > curr):
-                if len(puntos_8) < 8: puntos_8.append(dates[i].date())
+                if len(puntos_8_analema) < 8:
+                    puntos_8_analema.append(dates[i].date())
         
-        return dates, v, s, dst_dates, m_set[2], m_set[3], m_rise[2], m_rise[3], puntos_8
-
+        return dates, v, s, dst_dates, date_max_sunset, date_min_sunset, date_max_sunrise, date_min_sunrise, puntos_8_analema
+        
     # --- PESTAÑA 2: CICLO ANUAL ---
     with tab_grafo:
-        dates_s, v_s, s_s, dst_s, d_max_s, d_min_s, d_max_r, d_min_r, p8_s = obtener_datos_anuales(2026)
-        x_s = [d.date() for d in dates_s]
-        fig2 = go.Figure()
-        def add_a(y, c, n): fig2.add_trace(go.Scatter(x=x_s, y=y, fill='tonexty', mode='lines', line=dict(width=0), fillcolor=c, name=n, hoverinfo='skip'))
-        fig2.add_trace(go.Scatter(x=x_s, y=[0]*len(x_s), mode='lines', line=dict(width=0), showlegend=False))
-        add_a(v_s['t1'], c_pitta_n, "Pitta N."); add_a(v_s['t2'], c_vatta_n, "Vata N."); add_a(v_s['t3'], c_kapha_d, "Kapha M.")
-        add_a(v_s['t4'], c_pitta_d, "Pitta D."); add_a(v_s['t5'], c_vatta_d, "Vata T."); add_a(v_s['t6'], c_kapha_n, "Kapha N."); add_a([24]*len(x_s), c_pitta_n, "Pitta N.")
-        fig2.add_trace(go.Scatter(x=x_s, y=v_s['M'], line=dict(color='#FF8C00', width=2), name="Cénit"))
-        for p in p8_s: fig2.add_vline(x=str(p), line_dash="dot", line_color="yellow")
-        for d in [d_max_s, d_min_s]: fig2.add_vline(x=str(d), line_dash="dot", line_color="red" if d==d_max_s else "blue")
-        fig2.update_layout(template="plotly_dark", height=600, yaxis=dict(range=[0, 24]), margin=dict(l=0,r=0,t=30,b=0), hovermode="x unified")
-        st.plotly_chart(fig2, use_container_width=True)
-        st.markdown("**1. Solsticios:** Naranja/Cian. | **2. Cénit Solar:** Línea naranja. 8 marcadores amarillos. | **3. Amanecer:** Magenta/Verde. | **4. Atardecer:** Rojo/Azul.")
+        with st.spinner('Procesando ciclo anual...'):
+            año_act = datetime.datetime.now().year
+            res = obtener_datos_anuales(ubicacion, año_act)
+            # Desempaquetamos las 9 variables
+            dates, v, s, dst_dates, d_max_set, d_min_set, d_max_rise, d_min_rise, p8 = res
+            
+            x = [d.date() for d in dates]
+            fig_grafo = go.Figure()
 
-    # --- PESTAÑA 3: LUNAR Y PERSONAL ---
+            def add_area(y_data, color, name):
+                fig_grafo.add_trace(go.Scatter(x=x, y=y_data, fill='tonexty', mode='lines', line=dict(width=0), fillcolor=color, hoverinfo='skip', showlegend=False, name=name))
+                
+            fig_grafo.add_trace(go.Scatter(x=x, y=[0]*len(x), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False))
+            add_area(v['t1'], c_pitta_n, "Pitta Noche")
+            add_area(v['t2'], c_vatta_n, "Vata Noche")
+            add_area(v['t3'], c_kapha_d, "Kapha Mañana")
+            add_area(v['t4'], c_pitta_d, "Pitta Día")
+            add_area(v['t5'], c_vatta_d, "Vata Tarde")
+            add_area(v['t6'], c_kapha_n, "Kapha Noche")
+            add_area([24]*len(x), c_pitta_n, "Pitta Noche")
+            
+            # Curvas dinámicas
+            fig_grafo.add_trace(go.Scatter(x=x, y=v['bm'], mode='lines', line=dict(color='gold', width=2, dash='dash'), hoverinfo='skip', showlegend=False))
+            fig_grafo.add_trace(go.Scatter(x=x, y=v['M'], mode='lines', line=dict(color='#FF8C00', width=2), hoverinfo='skip', showlegend=False))
+
+            def add_hover(y_data, text_data, name):
+                fig_grafo.add_trace(go.Scatter(x=x, y=y_data, customdata=text_data, mode='lines', line=dict(width=0), hovertemplate=f"<b>{name}</b>: %{{customdata}}<extra></extra>"))
+                
+            add_hover(v['bm'], s['bm'], "Brahma Muhurta")
+            add_hover(v['t2'], s['t2'], "Amanecer (Kapha)")
+            add_hover(v['t3'], s['t3'], "Inicio Pitta")
+            add_hover(v['M'], s['M'], "Cénit Solar")
+            add_hover(v['t4'], s['t4'], "Inicio Vata")
+            add_hover(v['t5'], s['t5'], "Atardecer (Kapha)")
+            add_hover(v['t6'], s['t6'], "Pitta Noche")
+            add_hover(v['t1'], s['t1'], "Vata Noche")
+
+            def add_vline(d_val, color, dash='dot'):
+                if d_val: fig_grafo.add_vline(x=str(d_val), line_dash=dash, line_color=color, opacity=0.7)
+            
+            # Solsticios
+            s_ver, s_inv = datetime.date(año_act, 6, 21), datetime.date(año_act, 12, 21)
+            if s_ver < dates[0].date(): s_ver = datetime.date(año_act+1, 6, 21)
+            if s_inv < dates[0].date(): s_inv = datetime.date(año_act+1, 12, 21)
+            add_vline(s_ver, "orange", "dash")
+            add_vline(s_inv, "cyan", "dash")
+            
+            # Extremos de Amanecer / Atardecer
+            add_vline(d_max_rise, "magenta", "dot"); add_vline(d_min_rise, "lightgreen", "dot")
+            add_vline(d_max_set, "red", "dot"); add_vline(d_min_set, "blue", "dot")
+            
+            # 8 Marcadores amarillos del Cénit
+            for fecha_p in p8:
+                add_vline(fecha_p, "yellow", "dot")
+            
+            for d_dst in dst_dates: add_vline(d_dst, "white", "solid")
+
+            fig_grafo.update_layout(xaxis=dict(tickformat="%d %b", title='Ciclo Perpetuo'), yaxis_title='Hora Local',
+                yaxis=dict(range=[0, 24], tickvals=list(range(0, 25)), gridcolor='rgba(128, 128, 128, 0.2)'),
+                hovermode="x unified", template="plotly_dark", height=650, margin=dict(l=0, r=0, t=30, b=0))
+            st.plotly_chart(fig_grafo, use_container_width=True)
+
+            st.markdown("---")
+            st.markdown("**1. Solsticios:** Naranja (Verano), Cian (Invierno).")
+            st.markdown("**2. Cénit Solar:** Línea naranja continua. Marcadores amarillos en sus 8 puntos críticos.")
+            st.markdown("**3. Amanecer:** Magenta (tardío), Verde (temprano).")
+            st.markdown("**4. Atardecer:** Rojo (tardío), Azul (temprano).")
+            st.markdown("**5. Reloj:** Líneas blancas (cambio de hora social).")
     with tab_lunar:
         st.subheader("🌙 Ciclo Lunar y Diario Personal")
         
