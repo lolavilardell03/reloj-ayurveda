@@ -128,11 +128,10 @@ try:
     with tab_lunar:
         st.subheader("🌙 Ciclo Lunar y Diario Personal")
         
-        # 1. Selector de año
-        año_lunar = st.number_input("Visualizar año:", min_value=2020, max_value=2050, value=2026, step=1)
+        # 1. Selector de año (Base de datos infinita)
+        año_sel = st.number_input("Visualizar ciclo (Empezando en Marzo):", min_value=2020, max_value=2050, value=2026, step=1)
         
         col_reg, col_nota = st.columns(2)
-        
         with col_reg:
             f_r = st.date_input("Día de regla:", value=datetime.date.today())
             c1, c2 = st.columns(2)
@@ -162,16 +161,19 @@ try:
                     conn.commit()
                     st.warning("Nota eliminada")
         
-        # 2. Recuperar datos
-        cursor.execute('SELECT fecha FROM regla')
-        dias_r = [f[0] for f in cursor.fetchall()]
-        cursor.execute('SELECT * FROM notas')
-        notas_dict = dict(cursor.fetchall())
-        
-        # 3. Gráfico
-        dates_l = pd.date_range(start=f'{año_lunar}-01-01', end=f'{año_lunar}-12-31', freq='D')
+        # 2. DEFINIR RANGO DE UN AÑO (Empieza el 20 de Marzo)
+        fecha_inicio = datetime.date(año_sel, 3, 20)
+        fecha_fin = datetime.date(año_sel + 1, 3, 19)
+        dates_l = pd.date_range(start=fecha_inicio, end=fecha_fin, freq='D')
         x_l = [d.date() for d in dates_l]
         
+        # 3. Recuperar datos y filtrar para que SOLO se vea el año seleccionado
+        cursor.execute('SELECT fecha FROM regla WHERE fecha BETWEEN ? AND ?', (str(fecha_inicio), str(fecha_fin)))
+        dias_r = [f[0] for f in cursor.fetchall()]
+        cursor.execute('SELECT * FROM notas WHERE fecha BETWEEN ? AND ?', (str(fecha_inicio), str(fecha_fin)))
+        notas_dict = dict(cursor.fetchall())
+        
+        # Calcular datos solares para el rango seleccionado
         v_l = {k: [] for k in ['t1', 't2', 't3', 't4', 't5', 't6', 'M']}
         for d in dates_l:
             ev_vals, off = get_solar_events(d.date())
@@ -181,13 +183,11 @@ try:
                     
         fig3 = go.Figure()
         
-        # Áreas Ayurvédicas
+        # Dibujar áreas de color (Colores infinitos para cualquier año)
         def add_area_lunar(y_data, color):
             fig3.add_trace(go.Scatter(x=x_l, y=y_data, fill='tonexty', mode='lines', line=dict(width=0), fillcolor=color, hoverinfo='skip', showlegend=False))
             
-        # CORRECCIÓN AQUÍ: Cambiamos [0]*len por [0]*len(x_l)
         fig3.add_trace(go.Scatter(x=x_l, y=[0]*len(x_l), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False))
-        
         add_area_lunar(v_l['t1'], c_pitta_n)
         add_area_lunar(v_l['t2'], c_vatta_n)
         add_area_lunar(v_l['t3'], c_kapha_d)
@@ -199,23 +199,29 @@ try:
         # Línea Cénit suave
         fig3.add_trace(go.Scatter(x=x_l, y=v_l['M'], line=dict(color='rgba(255, 140, 0, 0.2)'), name="Cénit"))
 
-        # Lunas
+        # Lunas (Calculadas día a día para el año actual)
         for i in range(1, len(dates_l)):
             f_p, f_c = moon.phase(dates_l[i-1].date()), moon.phase(dates_l[i].date())
             if f_c < f_p: fig3.add_vline(x=str(dates_l[i].date()), line_dash="dot", line_color="gray", opacity=0.5)
             elif f_p < 14 <= f_c: fig3.add_vline(x=str(dates_l[i].date()), line_dash="dot", line_color="white", opacity=0.7)
                 
-        # Estaciones
-        for m, d_est in [(3,20), (6,21), (9,22), (12,21)]:
-            fig3.add_vline(x=str(datetime.date(año_lunar, m, d_est)), line_dash="dash", line_color="lightgreen", opacity=0.6)
+        # Equinoccios y Solsticios del año seleccionado
+        estaciones = [(3,20), (6,21), (9,22), (12,21), (3,20)] # Marzo del año siguiente incluido
+        for i, (m, d_est) in enumerate(estaciones):
+            y_est = año_sel if i < 4 else año_sel + 1
+            fig3.add_vline(x=str(datetime.date(y_est, m, d_est)), line_dash="dash", line_color="lightgreen", opacity=0.6)
             
-        # Regla y Notas
+        # Regla y Notas (Solo las que caen en este rango)
         for dr in dias_r: fig3.add_vline(x=dr, line_color="rgba(255, 100, 100, 0.4)", line_width=4)
-        for fn, tx in notas_dict.items():
-            if fn.startswith(str(año_lunar)):
-                fig3.add_trace(go.Scatter(x=[fn], y=[12], mode='markers', marker=dict(size=12, color='white', symbol='star'), hovertext=tx, name="Nota"))
+        for f_n, tx in notas_dict.items():
+            fig3.add_trace(go.Scatter(x=[f_n], y=[12], mode='markers', marker=dict(size=12, color='white', symbol='star'), hovertext=tx, name="Nota"))
 
-        fig3.update_layout(template="plotly_dark", height=600, margin=dict(l=0,r=0,t=30,b=0), yaxis=dict(range=[0,24]), showlegend=False)
+        fig3.update_layout(
+            template="plotly_dark", height=600, margin=dict(l=0,r=0,t=30,b=0), 
+            yaxis=dict(range=[0,24], gridcolor='rgba(128, 128, 128, 0.2)'),
+            xaxis=dict(tickformat="%d %b", title=f"Ciclo Personal {año_sel}-{año_sel+1}"),
+            showlegend=False
+        )
         st.plotly_chart(fig3, use_container_width=True)
                                   
 except Exception:
