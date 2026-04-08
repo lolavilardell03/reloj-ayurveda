@@ -130,9 +130,9 @@ try:
     # --- PESTAÑA 2: CICLO ANUAL ---
     with tab_grafo:
         with st.spinner('Procesando ciclo anual...'):
-            año_act = datetime.datetime.now().year
+            año_act = datetime.datetime.now(tz).year
+            # Llamamos a tu función de datos anuales (la que devuelve 9 variables)
             res = obtener_datos_anuales(ubicacion, año_act)
-            # Desempaquetamos las 9 variables
             dates, v, s, dst_dates, d_max_set, d_min_set, d_max_rise, d_min_rise, p8 = res
             
             x = [d.date() for d in dates]
@@ -153,6 +153,12 @@ try:
             # Curvas dinámicas
             fig_grafo.add_trace(go.Scatter(x=x, y=v['bm'], mode='lines', line=dict(color='gold', width=2, dash='dash'), hoverinfo='skip', showlegend=False))
             fig_grafo.add_trace(go.Scatter(x=x, y=v['M'], mode='lines', line=dict(color='#FF8C00', width=2), hoverinfo='skip', showlegend=False))
+
+            # --- LÍNEA TURQUESA DE "HOY" ---
+            hoy_real = datetime.datetime.now(tz).date()
+            # Si el día de hoy está dentro del rango que muestra el gráfico (Marzo a Marzo)
+            if dates[0].date() <= hoy_real <= dates[-1].date():
+                fig_grafo.add_vline(x=str(hoy_real), line_width=4, line_color="turquoise", line_dash="solid", opacity=0.9)
 
             def add_hover(y_data, text_data, name):
                 fig_grafo.add_trace(go.Scatter(x=x, y=y_data, customdata=text_data, mode='lines', line=dict(width=0), hovertemplate=f"<b>{name}</b>: %{{customdata}}<extra></extra>"))
@@ -180,7 +186,7 @@ try:
             add_vline(d_max_rise, "magenta", "dot"); add_vline(d_min_rise, "lightgreen", "dot")
             add_vline(d_max_set, "red", "dot"); add_vline(d_min_set, "blue", "dot")
             
-            # 8 Marcadores amarillos del Cénit
+            # Los 8 marcadores amarillos que tanto te gustan
             for fecha_p in p8:
                 add_vline(fecha_p, "yellow", "dot")
             
@@ -196,7 +202,8 @@ try:
             st.markdown("**2. Cénit Solar:** Línea naranja continua. Marcadores amarillos en sus 8 puntos críticos.")
             st.markdown("**3. Amanecer:** Magenta (tardío), Verde (temprano).")
             st.markdown("**4. Atardecer:** Rojo (tardío), Azul (temprano).")
-            st.markdown("**5. Reloj:** Líneas blancas (cambio de hora social).")
+            st.markdown("**5. Reloj:** Líneas blancas (cambio de hora social) y **Línea Turquesa** (Hoy).")
+        
     with tab_lunar:
         st.subheader("🌙 Ciclo Lunar y Diario Personal")
         
