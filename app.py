@@ -79,7 +79,8 @@ try:
     # --- FUNCIÓN DATOS ANUALES (CON 8 MARCADORES) ---
     def obtener_datos_anuales(ubicacion_nombre, año):
         dates = pd.date_range(start=f'{año}-03-20', end=f'{año+1}-03-19', freq='D')
-        claves = ['t1', 't2', 't3', 't4', 't5', 't6', 'bm', 'M']
+        # Añadimos 'bm_e' (Brahma Muhurta End) a las claves
+        claves = ['t1', 't2', 't3', 't4', 't5', 't6', 'bm', 'M', 'bm_e']
         v = {k: [] for k in claves}
         s = {k: [] for k in claves}
         dst_dates = []
@@ -94,24 +95,38 @@ try:
         puntos_8_analema = []
 
         for d in dates:
-            # Llamada a la función (esperando 2 valores: ev y offset)
             ev, offset = get_solar_events(d.date())
             if prev_offset is not None and offset != prev_offset:
                 dst_dates.append(d.date())
             prev_offset = offset
             
-            h_rise, h_set = ev[1] + offset, ev[4] + offset
+            # Sunrise (t2)
+            sunrise_raw = ev[1]
+            h_rise, h_set = sunrise_raw + offset, ev[4] + offset
+            
+            # Cálculo exacto de Brahma Muhurta (Inicio bm, Final bm_e)
+            # ev[6] ya es Sunrise - 1.6 horas (96 min). Ese es el inicio.
+            # El final es Sunrise - 0.8 horas (48 min).
+            bm_start = ev[6]
+            bm_end = sunrise_raw - 0.8
+
             if h_set > max_sunset: max_sunset, date_max_sunset = h_set, d.date()
             if h_set < min_sunset: min_sunset, date_min_sunset = h_set, d.date()
             if h_rise > max_sunrise: max_sunrise, date_max_sunrise = h_rise, d.date()
             if h_rise < min_sunrise: min_sunrise, date_min_sunrise = h_rise, d.date()
 
-            # Guardamos M para los 8 puntos
+            # Guardamos M
             v['M'].append(ev[7])
             s['M'].append(formato_hhmm(ev[7] + offset))
+            
+            # Guardamos bm (Inicio) y bm_e (Final)
+            v['bm'].append(bm_start)
+            s['bm'].append(formato_hhmm(bm_start + offset))
+            v['bm_e'].append(bm_end)
+            s['bm_e'].append(formato_hhmm(bm_end + offset))
 
-            for i, k in enumerate(claves):
-                if k != 'M':
+            # Guardamos el resto
+            for i, k in enumerate(['t1', 't2', 't3', 't4', 't5', 't6']):
                     v[k].append(min(24.0, ev[i]) if k == 't6' else ev[i])
                     s[k].append(formato_hhmm(ev[i] + offset))
 
@@ -125,6 +140,8 @@ try:
                 if len(puntos_8_analema) < 8:
                     puntos_8_analema.append(dates[i].date())
         
+        # OJO: La llamada res = obtener_datos_anuales en tab_grafo DEBE unpackear 9 variables.
+        # Estamos devolviendo los mismos 9 objetos, pero v y s ahora contienen 'bm_e'.
         return dates, v, s, dst_dates, date_max_sunset, date_min_sunset, date_max_sunrise, date_min_sunrise, puntos_8_analema
         
     # --- PESTAÑA 2: CICLO ANUAL ---
@@ -133,6 +150,7 @@ try:
             año_act = datetime.datetime.now(tz).year
             # Llamamos a tu función de datos anuales (la que devuelve 9 variables)
             res = obtener_datos_anuales(ubicacion, año_act)
+            # Desempaquetamos las 9 variables
             dates, v, s, dst_dates, d_max_set, d_min_set, d_max_rise, d_min_rise, p8 = res
             
             x = [d.date() for d in dates]
@@ -140,7 +158,10 @@ try:
 
             def add_area(y_data, color, name):
                 fig_grafo.add_trace(go.Scatter(x=x, y=y_data, fill='tonexty', mode='lines', line=dict(width=0), fillcolor=color, hoverinfo='skip', showlegend=False, name=name))
-                
+            
+            # --- COLOR COMPLEMENTARIO BRAHMA MUHURTA (Oro Ámbar) ---
+            c_brahma_m = 'rgba(255, 191, 0, 0.5)'
+
             fig_grafo.add_trace(go.Scatter(x=x, y=[0]*len(x), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False))
             add_area(v['t1'], c_pitta_n, "Pitta Noche")
             add_area(v['t2'], c_vatta_n, "Vata Noche")
@@ -150,32 +171,40 @@ try:
             add_area(v['t6'], c_kapha_n, "Kapha Noche")
             add_area([24]*len(x), c_pitta_n, "Pitta Noche")
             
+            # --- DIBUJAR BRAHMA MUHURTA (Intervalo central de 48 min) ---
+            # El intervalo está delimitado por Inicio (bm) y Fin (bm_e)
+            fig_grafo.add_trace(go.Scatter(
+                x=list(x) + list(x)[::-1], # Trazado de ida y vuelta para rellenar área
+                y=list(v['bm_e']) + list(v['bm'])[::-1], 
+                fill='toself', fillcolor=c_brahma_m, 
+                mode='lines', line=dict(width=0), 
+                hoverinfo='skip', showlegend=False, name="Brahma Muhurta"
+            ))
+
             # Curvas dinámicas
-            fig_grafo.add_trace(go.Scatter(x=x, y=v['bm'], mode='lines', line=dict(color='gold', width=2, dash='dash'), hoverinfo='skip', showlegend=False))
+            # He quitado la línea de 'gold' bm anterior porque ahora tenemos la franja completa.
+            # Mantenemos Cénit.
             fig_grafo.add_trace(go.Scatter(x=x, y=v['M'], mode='lines', line=dict(color='#FF8C00', width=2), hoverinfo='skip', showlegend=False))
 
-            # --- LÍNEA DE "HOY" (Turquesa más clarito) ---
+            # --- LÍNEA DE "HOY" (Turquesa más chillón/intenso) ---
             hoy_real = datetime.datetime.now(tz).date()
             # Si el día de hoy está dentro del rango que muestra el gráfico (Marzo a Marzo)
             if dates[0].date() <= hoy_real <= dates[-1].date():
-                # He cambiado el color a 'paleturquoise' para que sea más clarito
-                fig_grafo.add_vline(x=str(hoy_real), line_width=4, line_color="paleturquoise", line_dash="solid", opacity=0.8)
+                # He cambiado el color a 'cyan' (más intenso y chillón) y subido opacidad
+                fig_grafo.add_vline(x=str(hoy_real), line_width=4, line_color="cyan", line_dash="solid", opacity=0.95)
 
             def add_hover(y_data, text_data, name):
                 fig_grafo.add_trace(go.Scatter(x=x, y=y_data, customdata=text_data, mode='lines', line=dict(width=0), hovertemplate=f"<b>{name}</b>: %{{customdata}}<extra></extra>"))
-            
-            # --- ORDEN INVERSO PARA EL HOVER (Brahma Muhurta arriba) ---
-            # Para invertir el orden, añadimos las trazas del hover en orden inverso
-            # La última añadida aparecerá arriba en la lista unificada.
-            
-            add_hover(v['t1'], s['t1'], "Vata Noche")
-            add_hover(v['t6'], s['t6'], "Pitta Noche")
-            add_hover(v['t5'], s['t5'], "Atardecer (Kapha)")
-            add_hover(v['t4'], s['t4'], "Inicio Vata")
-            add_hover(v['M'], s['M'], "Cénit Solar")
-            add_hover(v['t3'], s['t3'], "Inicio Pitta")
+                
+            add_hover(v['bm'], s['bm'], "Brahma Muhurta (Inicio)")
+            add_hover(v['bm_e'], s['bm_e'], "Brahma Muhurta (Final)")
             add_hover(v['t2'], s['t2'], "Amanecer (Kapha)")
-            add_hover(v['bm'], s['bm'], "Brahma Muhurta") # Esta aparecerá arriba
+            add_hover(v['t3'], s['t3'], "Inicio Pitta")
+            add_hover(v['M'], s['M'], "Cénit Solar")
+            add_hover(v['t4'], s['t4'], "Inicio Vata")
+            add_hover(v['t5'], s['t5'], "Atardecer (Kapha)")
+            add_hover(v['t6'], s['t6'], "Pitta Noche")
+            add_hover(v['t1'], s['t1'], "Vata Noche")
 
             def add_vline(d_val, color, dash='dot'):
                 if d_val: fig_grafo.add_vline(x=str(d_val), line_dash=dash, line_color=color, opacity=0.7)
@@ -191,7 +220,7 @@ try:
             add_vline(d_max_rise, "magenta", "dot"); add_vline(d_min_rise, "lightgreen", "dot")
             add_vline(d_max_set, "red", "dot"); add_vline(d_min_set, "blue", "dot")
             
-            # Los 8 marcadores amarillos
+            # Los 8 marcadores amarillos del Cénit
             for fecha_p in p8:
                 add_vline(fecha_p, "yellow", "dot")
             
@@ -205,9 +234,11 @@ try:
             st.markdown("---")
             st.markdown("**1. Solsticios:** Naranja (Verano), Cian (Invierno).")
             st.markdown("**2. Cénit Solar:** Línea naranja continua. Marcadores amarillos en sus 8 puntos críticos.")
-            st.markdown("**3. Amanecer:** Magenta (tardío), Verde (temprano).")
-            st.markdown("**4. Atardecer:** Rojo (tardío), Azul (temprano).")
-            st.markdown("**5. Reloj:** Líneas blancas (cambio de hora social) y **Línea Turquesa Clorito** (Hoy).")
+            # Añadimos Brahma Muhurta a la leyenda de texto
+            st.markdown("**3. Brahma Muhurta:** Franja Oro Ámbar. Intervalo central sáttvico (48 min) antes del Amanecer.")
+            st.markdown("**4. Amanecer:** Magenta (tardío), Verde (temprano).")
+            st.markdown("**5. Atardecer:** Rojo (tardío), Azul (temprano).")
+            st.markdown("**6. Reloj:** Líneas blancas (cambio de hora social) y **Línea Turquesa Chillón** (Hoy).")
     
     with tab_lunar:
         st.subheader("🌙 Ciclo Lunar y Diario Personal")
