@@ -128,7 +128,7 @@ try:
     with tab_lunar:
         st.subheader("🌙 Ciclo Lunar y Diario Personal")
         
-        # 1. Selector de año para que sea una base de datos infinita
+        # 1. Selector de año
         año_lunar = st.number_input("Visualizar año:", min_value=2020, max_value=2050, value=2026, step=1)
         
         col_reg, col_nota = st.columns(2)
@@ -162,61 +162,32 @@ try:
                     conn.commit()
                     st.warning("Nota eliminada")
         
-        # 2. Recuperar datos almacenados
+        # 2. Recuperar datos
         cursor.execute('SELECT fecha FROM regla')
         dias_r = [f[0] for f in cursor.fetchall()]
         cursor.execute('SELECT * FROM notas')
         notas_dict = dict(cursor.fetchall())
         
-        # 3. Generar el gráfico con áreas y eventos
+        # 3. Gráfico
         dates_l = pd.date_range(start=f'{año_lunar}-01-01', end=f'{año_lunar}-12-31', freq='D')
         x_l = [d.date() for d in dates_l]
         
         v_l = {k: [] for k in ['t1', 't2', 't3', 't4', 't5', 't6', 'M']}
         for d in dates_l:
-            # Desempaquetamos los 3 valores que devuelve tu función para evitar el ValueError
-            ev_vals, off, _ = get_solar_events(d.date())
+            # CORRECCIÓN AQUÍ: Quitamos el tercer valor (_) para que coincida con lo que devuelve la función
+            ev_vals, off = get_solar_events(d.date())
             for i, k in enumerate(['t1', 't2', 't3', 't4', 't5', 't6', 'bm', 'M']):
                 if k in v_l:
                     v_l[k].append(min(24.0, ev_vals[i]) if k == 't6' else ev_vals[i])
                     
         fig3 = go.Figure()
         
-        # Áreas de color de fondo
+        # Áreas Ayurvédicas
         def add_area_lunar(y_data, color):
             fig3.add_trace(go.Scatter(x=x_l, y=y_data, fill='tonexty', mode='lines', line=dict(width=0), fillcolor=color, hoverinfo='skip', showlegend=False))
             
-        fig3.add_trace(go.Scatter(x=x_l, y=[0]*len(x_l), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False))
-        add_area_lunar(v_l['t1'], c_pitta_n)
-        add_area_lunar(v_l['t2'], c_vatta_n)
-        add_area_lunar(v_l['t3'], c_kapha_d)
-        add_area_lunar(v_l['t4'], c_pitta_d)
-        add_area_lunar(v_l['t5'], v_l['t5']) # Ajuste visual para vatta tarde
-        add_area_lunar(v_l['t6'], c_kapha_n)
-        add_area_lunar([24]*len(x_l), c_pitta_n)
-        
-        # Líneas de Fases Lunares
-        for i in range(1, len(dates_l)):
-            f_p, f_c = moon.phase(dates_l[i-1].date()), moon.phase(dates_l[i].date())
-            if f_c < f_p: # Luna Nueva
-                fig3.add_vline(x=str(dates_l[i].date()), line_dash="dot", line_color="gray", opacity=0.5)
-            elif f_p < 14 <= f_c: # Luna Llena
-                fig3.add_vline(x=str(dates_l[i].date()), line_dash="dot", line_color="white", opacity=0.7)
-                
-        # Equinoccios y Solsticios
-        for m, d_est in [(3,20), (6,21), (9,22), (12,21)]:
-            fig3.add_vline(x=str(datetime.date(año_lunar, m, d_est)), line_dash="dash", line_color="lightgreen", opacity=0.6)
-            
-        # Regla y Notas
-        for dr in dias_r: 
-            fig3.add_vline(x=dr, line_color="rgba(255, 100, 100, 0.4)", line_width=4)
-        for fn, tx in notas_dict.items():
-            if fn.startswith(str(año_lunar)):
-                fig3.add_trace(go.Scatter(x=[fn], y=[12], mode='markers', marker=dict(size=12, color='white', symbol='star'), hovertext=tx, name="Nota"))
-
-        fig3.update_layout(template="plotly_dark", height=600, margin=dict(l=0,r=0,t=30,b=0), yaxis=dict(range=[0,24]), showlegend=False)
-        st.plotly_chart(fig3, use_container_width=True)
-       
+        fig3.add_trace(go.Scatter(x=x_l, y=[0]*len
+                                  
 except Exception:
     st.error("Error técnico:")
     st.code(traceback.format_exc())
