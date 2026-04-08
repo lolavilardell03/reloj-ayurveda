@@ -107,27 +107,55 @@ try:
     # --- PESTAÑA 1: RELOJ DIARIO ---
     with tab_circulo:
         hoy = datetime.datetime.now(tz).date()
+        # Obtenemos los eventos solares
         (t1, t2, t3, t4, t5, t6, bm, M), offset = get_solar_events(hoy)
         
         # Lógica de Brahma Muhurta
-        bm_inicio, bm_final = t2 - 1.6, t2 - 0.8
+        bm_inicio = t2 - 1.6
+        bm_final = t2 - 0.8
         c_mystic_blue = 'rgba(100, 130, 255, 0.8)'
 
         col_t, col_c = st.columns([1, 2])
+        
         with col_t:
             st.markdown(f"### {ubicacion.split(' ')[0]}")
-            # Tamaño de letra normalizado (sin ###)
+            # Lista estilizada y espaciada
             st.write(f"**✨ Brahma Muhurta (Inicio):** `{formato_hhmm(bm_inicio + offset)}`")
             st.write(f"**✨ Brahma Muhurta (Final):** `{formato_hhmm(bm_final + offset)}`")
             st.markdown("---")
-            st.write(f"**Amanecer:** `{formato_hhmm(t2 + offset)}` | **Pitta:** `{formato_hhmm(t3 + offset)}`")
-            st.write(f"**Cénit:** `{formato_hhmm(M + offset)}` | **Vata:** `{formato_hhmm(t4 + offset)}`")
-            st.write(f"**Atardecer:** `{formato_hhmm(t5 + offset)}` | **Pitta N.:** `{formato_hhmm(t6 + offset)}` ")
+            st.write(f"**🌅 Amanecer (Kapha):** `{formato_hhmm(t2 + offset)}`")
+            st.write(f"**🔥 Inicio Pitta:** `{formato_hhmm(t3 + offset)}`")
+            st.write(f"**☀️ Mediodía Solar:** `{formato_hhmm(M + offset)}`")
+            st.write(f"**🌬️ Inicio Vata:** `{formato_hhmm(t4 + offset)}`")
+            st.write(f"**🌇 Atardecer (Kapha):** `{formato_hhmm(t5 + offset)}`")
+            st.write(f"**🌙 Pitta Noche:** `{formato_hhmm(t6 + offset)}`")
+            st.write(f"**🌌 Vata Noche:** `{formato_hhmm(t1 + offset)}` ")
 
         with col_c:
-            duraciones = [max(0.1, t1), bm_inicio - t1, 0.8, 0.8, t3 - t2, t4 - t3, t5 - t4, min(24.0, t6) - t5]
-            nombres = ['Pitta Noche', 'Vata Noche', '✨ Brahma Muhurta', 'Vata (Transición)', 'Kapha Mañana', 'Pitta Día', 'Vata Tarde', 'Kapha Noche']
-            colores = [c_pitta_n, c_vatta_n, c_mystic_blue, c_vatta_n, c_kapha_d, c_pitta_d, c_vatta_d, c_kapha_n]
+            # Duraciones del gráfico
+            duraciones = [
+                max(0.1, t1),               # Pitta Noche
+                bm_inicio - t1,             # Vata Noche (Silencio)
+                0.8,                        # Brahma Muhurta
+                0.8,                        # Vata Transición (Sin texto)
+                t3 - t2,                    # Kapha Mañana
+                t4 - t3,                    # Pitta Día
+                t5 - t4,                    # Vata Tarde
+                min(24.0, t6) - t5          # Kapha Noche
+            ]
+            
+            # Hemos dejado el sector de transición sin texto ("") para limpiar el diseño
+            nombres = [
+                'Pitta Noche', 'Vata Noche', '✨ Brahma Muhurta', 
+                '', 'Kapha Mañana', 'Pitta Día', 
+                'Vata Tarde', 'Kapha Noche'
+            ]
+            
+            colores = [
+                c_pitta_n, c_vatta_n, c_mystic_blue, 
+                c_vatta_n, c_kapha_d, c_pitta_d, 
+                c_vatta_d, c_kapha_n
+            ]
             
             if t6 < 24.0:
                 duraciones.append(24.0 - t6)
@@ -137,16 +165,18 @@ try:
             fig = go.Figure(go.Pie(
                 values=duraciones, 
                 labels=nombres, 
-                # Borde eliminado (width=0)
-                marker=dict(colors=colores, line=dict(width=0)), 
-                hole=0.4, sort=False, direction='clockwise', rotation=270, textinfo='label'
+                marker=dict(colors=colores, line=dict(width=0)), # Sin bordes
+                hole=0.4, 
+                sort=False, 
+                direction='clockwise', 
+                rotation=270, 
+                textinfo='label'
             ))
+            
             fig.update_layout(
-                template="plotly_dark", height=500, showlegend=False, 
-                margin=dict(t=0,b=0,l=0,r=0),
-                annotations=[dict(text='🦀', x=0.5, y=0.5, font=dict(size=35), showarrow=False)]
-            )
-            st.plotly_chart(fig, use_container_width=True)
+                template="plotly_dark", 
+                height=500, 
+                showlegend=False,
 
     # --- PESTAÑA 2: CICLO ANUAL ---
     with tab_grafo:
