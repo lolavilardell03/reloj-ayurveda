@@ -122,15 +122,15 @@ try:
             # Leyenda limpia: Solo emojis en BM y Cénit
             st.write(f"**✨ Brahma Muhurta (Inicio):** `{formato_hhmm(bm_inicio + offset)}`")
             st.write(f"**✨ Brahma Muhurta (Final):** `{formato_hhmm(bm_final + offset)}`")
-            st.write(f"**Amanecer (Kapha):** `{formato_hhmm(t2 + offset)}`")
+            st.write(f"**✨ Amanecer (Kapha):** `{formato_hhmm(t2 + offset)}`")
             st.markdown("---")
-            st.write(f"**Inicio Pitta:** `{formato_hhmm(t3 + offset)}`")
+            st.write(f"**☀️ Inicio Pitta:** `{formato_hhmm(t3 + offset)}`")
             st.write(f"**☀️ Mediodía Solar:** `{formato_hhmm(M + offset)}`")
-            st.write(f"**Inicio Vata:** `{formato_hhmm(t4 + offset)}`")
+            st.write(f"**☀️ Inicio Vata:** `{formato_hhmm(t4 + offset)}`")
             st.markdown("---")
-            st.write(f"**Atardecer (Kapha):** `{formato_hhmm(t5 + offset)}`")
-            st.write(f"**Pitta Noche:** `{formato_hhmm(t6 + offset)}`")
-            st.write(f"**Vata Noche:** `{formato_hhmm(t1 + offset)}` ")
+            st.write(f"**🌙 Atardecer (Kapha):** `{formato_hhmm(t5 + offset)}`")
+            st.write(f"**🌙 Pitta Noche:** `{formato_hhmm(t6 + offset)}`")
+            st.write(f"**🌙 Vata Noche:** `{formato_hhmm(t1 + offset)}` ")
 
         with col_c:
             # Duraciones del gráfico
