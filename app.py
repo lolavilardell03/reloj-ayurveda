@@ -74,7 +74,7 @@ try:
     c_vatta_d = 'rgba(170, 220, 255, 0.5)'  
     c_kapha_n = 'rgba(170, 220, 170, 0.5)'  
 
-    tab_circulo, tab_grafo = st.tabs(["Reloj Circular (Hoy)", "Ciclo Anual (Primavera)"])
+    tab_circulo, tab_grafo, tab3 = st.tabs(["Reloj Circular (Hoy)", "Ciclo Anual (Primavera)", "Ciclo Lunar"])
 
     with tab_circulo:
         hoy = datetime.datetime.now(tz).date()
