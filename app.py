@@ -263,32 +263,107 @@ try:
             st.markdown("**5. Reloj:** Líneas blancas (cambio de hora social).")
 
     with tab_lunar:
+        
         st.subheader("Ciclo Lunar y Diario Personal")
+        
+        # 1. Selector de año para que sea una base de datos "para siempre"
+        año_lunar = st.number_input("Selecciona el año a visualizar:", min_value=2020, max_value=2100, value=2026, step=1)
+        
         col_reg, col_nota = st.columns(2)
         with col_reg:
             f_r = st.date_input("Marcar día de regla:", value=datetime.date.today())
-            if st.button("Guardar regla"): cursor.execute('INSERT OR IGNORE INTO regla (fecha) VALUES (?)', (str(f_r),)); conn.commit(); st.success("Día guardado")
+            if st.button("Guardar regla"): 
+                cursor.execute('INSERT OR IGNORE INTO regla (fecha) VALUES (?)', (str(f_r),))
+                conn.commit()
+                st.success("Día guardado")
         with col_nota:
             f_n = st.date_input("Fecha de la nota:", value=datetime.date.today(), key="f_n")
             t_n = st.text_input("Nota breve:")
-            if st.button("Guardar nota"): cursor.execute('INSERT OR REPLACE INTO notas (fecha, texto) VALUES (?, ?)', (str(f_n), t_n)); conn.commit(); st.info("Nota guardada")
+            if st.button("Guardar nota"): 
+                cursor.execute('INSERT OR REPLACE INTO notas (fecha, texto) VALUES (?, ?)', (str(f_n), t_n))
+                conn.commit()
+                st.info("Nota guardada")
         
-        cursor.execute('SELECT fecha FROM regla'); dias_r = [f[0] for f in cursor.fetchall()]
-        cursor.execute('SELECT * FROM notas'); notas_dict = dict(cursor.fetchall())
+        # 2. Recuperar datos de la base de datos
+        cursor.execute('SELECT fecha FROM regla')
+        dias_r = [f[0] for f in cursor.fetchall()]
+        cursor.execute('SELECT * FROM notas')
+        notas_dict = dict(cursor.fetchall())
         
+        # 3. Generar fechas para TODO el año seleccionado
+        dates_lunar = pd.date_range(start=f'{año_lunar}-01-01', end=f'{año_lunar}-12-31', freq='D')
+        x_lunar = [d.date() for d in dates_lunar]
+        
+        # Calcular los datos solares solo para este año
+        v_l = {k: [] for k in ['t1', 't2', 't3', 't4', 't5', 't6', 'M']}
+        for d in dates_lunar:
+            ev, _ = get_solar_events(d.date())
+            for i, k in enumerate(['t1', 't2', 't3', 't4', 't5', 't6', 'bm', 'M']):
+                if k in v_l:
+                    v_l[k].append(min(24.0, ev[i]) if k == 't6' else ev[i])
+                    
         fig3 = go.Figure()
-        fig3.add_trace(go.Scatter(x=x, y=v['M'], line=dict(color='rgba(255, 140, 0, 0.2)'), name="Cénit"))
-        for d in dias_r: fig3.add_vline(x=d, line_color="rgba(255, 100, 100, 0.4)", line_width=4)
-        for d_l in dates:
-            fase = moon.phase(d_l.date())
-            if fase < 1: fig3.add_vline(x=str(d_l.date()), line_dash="dot", line_color="gray", opacity=0.3)
-            elif 14 <= fase <= 15: fig3.add_vline(x=str(d_l.date()), line_dash="dot", line_color="white", opacity=0.5)
-        for f_nota, txt in notas_dict.items():
-            fig3.add_trace(go.Scatter(x=[f_nota], y=[12], mode='markers', marker=dict(size=12, color='white', symbol='star'), hovertext=txt, name="Nota"))
         
-        fig3.update_layout(template="plotly_dark", height=500, margin=dict(l=0,r=0,t=30,b=0), yaxis=dict(range=[0,24]), showlegend=False)
+        # --- DIBUJAR LAS ÁREAS AYURVÉDICAS ---
+        def add_area_lunar(y_data, color):
+            fig3.add_trace(go.Scatter(x=x_lunar, y=y_data, fill='tonexty', mode='lines', line=dict(width=0), fillcolor=color, hoverinfo='skip', showlegend=False))
+            
+        fig3.add_trace(go.Scatter(x=x_lunar, y=[0]*len(x_lunar), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False))
+        add_area_lunar(v_l['t1'], c_pitta_n)
+        add_area_lunar(v_l['t2'], c_vatta_n)
+        add_area_lunar(v_l['t3'], c_kapha_d)
+        add_area_lunar(v_l['t4'], c_pitta_d)
+        add_area_lunar(v_l['t5'], c_vatta_d)
+        add_area_lunar(v_l['t6'], c_kapha_n)
+        add_area_lunar([24]*len(x_lunar), c_pitta_n)
+        
+        # Línea del Cénit
+        fig3.add_trace(go.Scatter(x=x_lunar, y=v_l['M'], line=dict(color='#FF8C00', width=2), name="Cénit"))
+        
+        # --- DÍAS DE REGLA ---
+        for d in dias_r: 
+            fig3.add_vline(x=d, line_color="rgba(255, 100, 100, 0.4)", line_width=4)
+            
+        # --- FASES LUNARES (Lógica Astronómica Corregida) ---
+        for i in range(1, len(dates_lunar)):
+            d_prev = dates_lunar[i-1].date()
+            d_curr = dates_lunar[i].date()
+            fase_prev = moon.phase(d_prev)
+            fase_curr = moon.phase(d_curr)
+            
+            # Luna Nueva (cuando la fase se reinicia de ~27 a 0)
+            if fase_curr < fase_prev:
+                fig3.add_vline(x=str(d_curr), line_dash="dot", line_color="gray", opacity=0.6)
+            # Luna Llena (cuando cruza la mitad del ciclo, el día 14)
+            elif fase_prev < 14 and fase_curr >= 14:
+                fig3.add_vline(x=str(d_curr), line_dash="dot", line_color="white", opacity=0.6)
+                
+        # --- EQUINOCCIOS Y SOLSTICIOS ---
+        estaciones = [
+            datetime.date(año_lunar, 3, 20), # Equinoccio Primavera
+            datetime.date(año_lunar, 6, 21), # Solsticio Verano
+            datetime.date(año_lunar, 9, 22), # Equinoccio Otoño
+            datetime.date(año_lunar, 12, 21) # Solsticio Invierno
+        ]
+        for f_est in estaciones:
+            fig3.add_vline(x=str(f_est), line_dash="dash", line_color="lightgreen", opacity=0.7)
+            
+        # --- NOTAS PERSONALES ---
+        for f_nota, txt in notas_dict.items():
+            # Filtramos para que solo se dibujen las notas del año seleccionado
+            if f_nota.startswith(str(año_lunar)):
+                fig3.add_trace(go.Scatter(x=[f_nota], y=[12], mode='markers', marker=dict(size=12, color='white', symbol='star'), hovertext=txt, name="Nota"))
+        
+        fig3.update_layout(
+            template="plotly_dark", 
+            height=600, 
+            margin=dict(l=0,r=0,t=30,b=0), 
+            yaxis=dict(range=[0,24], gridcolor='rgba(128, 128, 128, 0.2)'),
+            xaxis=dict(tickformat="%d %b"),
+            showlegend=False,
+            hovermode="x unified"
+        )
         st.plotly_chart(fig3, use_container_width=True)
-        st.markdown("- 🔴 **Rojo suave:** Regla registrada.  \n- ⚪ **Líneas punteadas:** Fases lunares (Blanco: Llena / Gris: Nueva).  \n- ⭐ **Estrellas:** Tus notas (pasa el ratón encima).")
         
 except Exception as e:
     st.error("¡Oops! Ha ocurrido un error técnico interno:")
