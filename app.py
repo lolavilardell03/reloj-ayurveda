@@ -125,7 +125,7 @@ try:
             st.write(f"**✨ Amanecer (Kapha):** `{formato_hhmm(t2 + offset)}`")
             st.markdown("---")
             st.write(f"**Inicio Pitta:** `{formato_hhmm(t3 + offset)}`")
-            st.write(f"**☀️ Mediodía Solar:** `{formato_hhmm(M + offset)}`")
+            st.write(f"**☀️ Mediodía:** `{formato_hhmm(M + offset)}`")
             st.write(f"**Inicio Vata:** `{formato_hhmm(t4 + offset)}`")
             st.markdown("---")
             st.write(f"**🌙 Atardecer (Kapha):** `{formato_hhmm(t5 + offset)}`")
