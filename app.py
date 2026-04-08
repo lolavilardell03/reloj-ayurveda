@@ -7,6 +7,22 @@ from astral import LocationInfo
 from astral.sun import sun
 import traceback
 
+import sqlite3
+
+# --- CONFIGURACIÓN DE BASE DE DATOS ---
+def gestionar_db():
+    # Crea el archivo de la base de datos
+    conn = sqlite3.connect('datos_personales.db', check_same_thread=False)
+    c = conn.cursor()
+    # Crea las tablas necesarias si no existen
+    c.execute('CREATE TABLE IF NOT EXISTS notas (fecha TEXT PRIMARY KEY, texto TEXT)')
+    c.execute('CREATE TABLE IF NOT EXISTS regla (fecha TEXT PRIMARY KEY)')
+    conn.commit()
+    return conn, c
+
+# Aquí es donde definimos 'conn' y 'cursor' para que el resto del código los reconozca
+conn, cursor = gestionar_db()
+
 try:
     st.set_page_config(page_title="Reloj Ayurvédico", page_icon="🌺", layout="wide")
     st.title("Tu Reloj Ayurvédico Personal")
