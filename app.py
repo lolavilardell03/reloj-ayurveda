@@ -108,25 +108,44 @@ try:
     with tab_circulo:
         hoy = datetime.datetime.now(tz).date()
         (t1, t2, t3, t4, t5, t6, bm, M), offset = get_solar_events(hoy)
+        
+        # Lógica de Brahma Muhurta
         bm_inicio, bm_final = t2 - 1.6, t2 - 0.8
+        c_mystic_blue = 'rgba(100, 130, 255, 0.8)'
 
         col_t, col_c = st.columns([1, 2])
         with col_t:
             st.markdown(f"### {ubicacion.split(' ')[0]}")
-            st.markdown(f"**✨ Brahma Muhurta (Inicio):** `{formato_hhmm(bm_inicio + offset)}`  \n"
-                        f"**✨ Brahma Muhurta (Final):** `{formato_hhmm(bm_final + offset)}`  \n"
-                        f"---  \n"
-                        f"**Amanecer:** `{formato_hhmm(t2 + offset)}` | **Pitta:** `{formato_hhmm(t3 + offset)}`  \n"
-                        f"**Cénit:** `{formato_hhmm(M + offset)}` | **Vata:** `{formato_hhmm(t4 + offset)}`  \n"
-                        f"**Atardecer:** `{formato_hhmm(t5 + offset)}` | **Pitta N.:** `{formato_hhmm(t6 + offset)}` ")
+            # Tamaño de letra normalizado (sin ###)
+            st.write(f"**✨ Brahma Muhurta (Inicio):** `{formato_hhmm(bm_inicio + offset)}`")
+            st.write(f"**✨ Brahma Muhurta (Final):** `{formato_hhmm(bm_final + offset)}`")
+            st.markdown("---")
+            st.write(f"**Amanecer:** `{formato_hhmm(t2 + offset)}` | **Pitta:** `{formato_hhmm(t3 + offset)}`")
+            st.write(f"**Cénit:** `{formato_hhmm(M + offset)}` | **Vata:** `{formato_hhmm(t4 + offset)}`")
+            st.write(f"**Atardecer:** `{formato_hhmm(t5 + offset)}` | **Pitta N.:** `{formato_hhmm(t6 + offset)}` ")
+
         with col_c:
             duraciones = [max(0.1, t1), bm_inicio - t1, 0.8, 0.8, t3 - t2, t4 - t3, t5 - t4, min(24.0, t6) - t5]
             nombres = ['Pitta Noche', 'Vata Noche', '✨ Brahma Muhurta', 'Vata (Transición)', 'Kapha Mañana', 'Pitta Día', 'Vata Tarde', 'Kapha Noche']
             colores = [c_pitta_n, c_vatta_n, c_mystic_blue, c_vatta_n, c_kapha_d, c_pitta_d, c_vatta_d, c_kapha_n]
-            if t6 < 24.0: duraciones.append(24.0 - t6); nombres.append('Pitta Noche'); colores.append(c_pitta_n)
             
-            fig = go.Figure(go.Pie(values=duraciones, labels=nombres, marker=dict(colors=colores, line=dict(color='#111', width=1.5)), hole=0.4, sort=False, direction='clockwise', rotation=270, textinfo='label'))
-            fig.update_layout(template="plotly_dark", height=500, showlegend=False, margin=dict(t=0,b=0,l=0,r=0), annotations=[dict(text='🦀', x=0.5, y=0.5, font=dict(size=35), showarrow=False)])
+            if t6 < 24.0:
+                duraciones.append(24.0 - t6)
+                nombres.append('Pitta Noche')
+                colores.append(c_pitta_n)
+
+            fig = go.Figure(go.Pie(
+                values=duraciones, 
+                labels=nombres, 
+                # Borde eliminado (width=0)
+                marker=dict(colors=colores, line=dict(width=0)), 
+                hole=0.4, sort=False, direction='clockwise', rotation=270, textinfo='label'
+            ))
+            fig.update_layout(
+                template="plotly_dark", height=500, showlegend=False, 
+                margin=dict(t=0,b=0,l=0,r=0),
+                annotations=[dict(text='🦀', x=0.5, y=0.5, font=dict(size=35), showarrow=False)]
+            )
             st.plotly_chart(fig, use_container_width=True)
 
     # --- PESTAÑA 2: CICLO ANUAL ---
@@ -141,31 +160,56 @@ try:
             def add_area(y_data, color, name):
                 fig_grafo.add_trace(go.Scatter(x=x, y=y_data, fill='tonexty', mode='lines', line=dict(width=0), fillcolor=color, hoverinfo='skip', showlegend=False, name=name))
             
+            # Áreas de color
             fig_grafo.add_trace(go.Scatter(x=x, y=[0]*len(x), mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False))
             add_area(v['t1'], c_pitta_n, "Pitta N."); add_area(v['t2'], c_vatta_n, "Vata N."); add_area(v['t3'], c_kapha_d, "Kapha M.")
             add_area(v['t4'], c_pitta_d, "Pitta D."); add_area(v['t5'], c_vatta_d, "Vata T."); add_area(v['t6'], c_kapha_n, "Kapha N."); add_area([24]*len(x), c_pitta_n, "Pitta N.")
             
-            fig_grafo.add_trace(go.Scatter(x=list(x) + list(x)[::-1], y=list(v['bm_e']) + list(v['bm'])[::-1], fill='toself', fillcolor=c_mystic_blue, mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False))
+            # Franja Brahma Muhurta (Mystic Blue)
+            c_mystic_blue_area = 'rgba(100, 130, 255, 0.6)'
+            fig_grafo.add_trace(go.Scatter(x=list(x) + list(x)[::-1], y=list(v['bm_e']) + list(v['bm'])[::-1], fill='toself', fillcolor=c_mystic_blue_area, mode='lines', line=dict(width=0), hoverinfo='skip', showlegend=False))
+            
+            # Línea Cénit
             fig_grafo.add_trace(go.Scatter(x=x, y=v['M'], mode='lines', line=dict(color='#FF8C00', width=2), hoverinfo='skip', showlegend=False))
 
+            # Línea Turquesa Chillona (Hoy)
             hoy_real = datetime.datetime.now(tz).date()
             if dates[0].date() <= hoy_real <= dates[-1].date():
                 fig_grafo.add_vline(x=str(hoy_real), line_width=4, line_color="cyan", line_dash="solid", opacity=1.0)
 
-            def add_hover(y_data, text_data, name):
-                fig_grafo.add_trace(go.Scatter(x=x, y=y_data, customdata=text_data, mode='lines', line=dict(width=0), hovertemplate=f"<b>{name}</b>: %{{customdata}}<extra></extra>"))
-            
+            # Hover unificado (Orden inverso para que Brahma Muhurta esté arriba)
             add_hover(v['t1'], s['t1'], "Vata Noche"); add_hover(v['t6'], s['t6'], "Pitta Noche"); add_hover(v['t5'], s['t5'], "Atardecer"); add_hover(v['t4'], s['t4'], "Inicio Vata")
             add_hover(v['M'], s['M'], "Cénit Solar"); add_hover(v['t3'], s['t3'], "Inicio Pitta"); add_hover(v['t2'], s['t2'], "Amanecer")
             add_hover(v['bm_e'], s['bm_e'], "Brahma Muhurta (Fin)"); add_hover(v['bm'], s['bm'], "Brahma Muhurta (Inicio)")
 
-            for d_v in [d_max_set, d_min_set, d_max_rise, d_min_rise]: fig_grafo.add_vline(x=str(d_v), line_dash="dot", line_color="white", opacity=0.5)
-            for p in p8: fig_grafo.add_vline(x=str(p), line_dash="dot", line_color="yellow", opacity=0.6)
-            for dst in dst_dates: fig_grafo.add_vline(x=str(dst), line_color="white", opacity=0.3)
+            # --- RECUPERACIÓN DE LÍNEAS INFORMATIVAS ---
+            def add_vline(d_val, color, dash='dot', op=0.7):
+                if d_val: fig_grafo.add_vline(x=str(d_val), line_dash=dash, line_color=color, opacity=op)
+
+            # Solsticios
+            s_ver, s_inv = datetime.date(año_act, 6, 21), datetime.date(año_act, 12, 21)
+            if s_ver < dates[0].date(): s_ver = datetime.date(año_act+1, 6, 21)
+            add_vline(s_ver, "orange", "dash"); add_vline(s_inv, "cyan", "dash")
+            
+            # Extremos (Amanecer / Atardecer)
+            add_vline(d_max_rise, "magenta"); add_vline(d_min_rise, "lightgreen")
+            add_vline(d_max_set, "red"); add_vline(d_min_set, "blue")
+            
+            # 8 Marcadores Amarillos (Cénit)
+            for p in p8: add_vline(p, "yellow", op=0.6)
+            
+            # Cambio de hora (DST)
+            for dst in dst_dates: add_vline(dst, "white", dash="solid", op=0.3)
 
             fig_grafo.update_layout(xaxis=dict(tickformat="%d %b"), yaxis=dict(range=[0, 24]), hovermode="x unified", template="plotly_dark", height=600, margin=dict(l=0, r=0, t=30, b=0))
             st.plotly_chart(fig_grafo, use_container_width=True)
 
+            # Leyendas recuperadas
+            st.markdown("---")
+            st.markdown("**1. Solsticios:** Naranja (Verano), Cian (Invierno). | **2. Cénit Solar:** 8 marcadores amarillos.")
+            st.markdown("**3. Brahma Muhurta:** Franja azul místico (Blue Hour). | **4. Amanecer:** Magenta (tardío), Verde (temprano).")
+            st.markdown("**5. Atardecer:** Rojo (tardío), Azul (temprano). | **6. Hoy:** Línea cian eléctrica.")
+    
     # --- PESTAÑA 3: LUNAR ---
     with tab_lunar:
         st.subheader("🌙 Ciclo Lunar y Diario Personal")
