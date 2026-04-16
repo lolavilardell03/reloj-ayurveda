@@ -33,7 +33,7 @@ try:
 
     ubicacion = st.selectbox(
         "Selecciona tu ubicación:", 
-        ["Palma (Islas Baleares)", "Alcoy (Alicante)"]
+        ["Alcoy (Alicante)", "Palma (Islas Baleares)"]
     )
 
     loc = LocationInfo("Palma", "Spain", "Europe/Madrid", 39.5696, 2.6502) if "Palma" in ubicacion else LocationInfo("Alcoy", "Spain", "Europe/Madrid", 38.6983, -0.4736)
